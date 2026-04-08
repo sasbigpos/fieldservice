@@ -7,421 +7,141 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>FieldOps Report</title>
 
-<!-- Firebase SDKs -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, query, orderBy, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
-// =============================================
-// 🔥 PASTE YOUR FIREBASE CONFIG HERE
-// =============================================
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-// =============================================
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-window._firebase = { auth, db, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, collection, addDoc, getDocs, doc, setDoc, getDoc, query, orderBy, serverTimestamp, deleteDoc };
-
-// Call the init function if it's already defined (regular script loaded first),
-// otherwise store a flag so the regular script can pick it up.
-if (typeof window._onFirebaseReady === 'function') {
-  window._onFirebaseReady();
-} else {
-  window._firebaseReady = true;
-}
-</script>
-
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 
 <style>
   :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface2: #22263a;
-    --border: #2e3350;
-    --accent: #f4b942;
-    --accent2: #4ecdc4;
-    --danger: #ff5555;
-    --success: #50fa7b;
-    --text: #e8eaf0;
-    --text-muted: #7b82a0;
-    --radius: 10px;
-    --mono: 'IBM Plex Mono', monospace;
-    --sans: 'IBM Plex Sans', sans-serif;
+    --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --border:#2e3350;
+    --accent:#f4b942; --accent2:#4ecdc4; --danger:#ff5555; --success:#50fa7b;
+    --text:#e8eaf0; --text-muted:#7b82a0; --radius:10px;
+    --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
   }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  /* ── SCREENS ── */
-  .screen { display: none; min-height: 100vh; flex-direction: column; }
-  .screen.active { display: flex; }
-
-  /* ── AUTH SCREEN ── */
-  #authScreen {
-    background: var(--bg);
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-  }
-
-  .auth-box {
-    width: 100%;
-    max-width: 400px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 40px 32px;
-    animation: fadeUp 0.4s ease;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 32px;
-  }
-
-  .logo-icon {
-    width: 40px; height: 40px;
-    background: var(--accent);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
-  }
-
-  .logo-text { font-family: var(--mono); font-size: 18px; font-weight: 600; letter-spacing: -0.5px; }
-  .logo-text span { color: var(--accent); }
-
-  h2 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
-  .subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
-
-  label { display: block; font-size: 12px; font-family: var(--mono); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; margin-top: 16px; }
-
-  input[type="email"], input[type="password"], input[type="text"], input[type="number"], input[type="date"], textarea, select {
-    width: 100%; padding: 12px 14px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 15px;
-    transition: border-color 0.2s;
-    -webkit-appearance: none;
-  }
-
-  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
-  textarea { resize: vertical; min-height: 90px; }
-  select option { background: var(--surface2); }
-
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 13px 22px;
-    border-radius: var(--radius);
-    font-family: var(--sans); font-size: 15px; font-weight: 500;
-    cursor: pointer; border: none; transition: all 0.18s;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .btn-primary { background: var(--accent); color: #111; width: 100%; margin-top: 24px; }
-  .btn-primary:hover { background: #f5c96a; }
-  .btn-primary:active { transform: scale(0.98); }
-  .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
-  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-  .btn-danger { background: var(--danger); color: #fff; }
-  .btn-success { background: var(--success); color: #111; }
-  .btn-sm { padding: 8px 14px; font-size: 13px; }
-
-  .auth-toggle { text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-muted); }
-  .auth-toggle a { color: var(--accent); text-decoration: none; cursor: pointer; }
-
-  .error-msg { background: rgba(255,85,85,0.12); border: 1px solid rgba(255,85,85,0.3); color: #ff8080; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 14px; display: none; }
-  .error-msg.show { display: block; }
-
-  /* ── APP SHELL ── */
-  #appScreen { background: var(--bg); }
-
-  .topbar {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 14px 16px;
-    display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: 0; z-index: 100;
-  }
-
-  .topbar-title { font-family: var(--mono); font-size: 15px; font-weight: 600; }
-  .topbar-title span { color: var(--accent); }
-
-  .user-chip {
-    display: flex; align-items: center; gap: 8px;
-    background: var(--surface2); border: 1px solid var(--border);
-    padding: 6px 12px; border-radius: 20px; font-size: 12px; color: var(--text-muted);
-  }
-
-  /* ── BOTTOM NAV ── */
-  .bottom-nav {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    display: flex;
-    z-index: 100;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .nav-item {
-    flex: 1; display: flex; flex-direction: column; align-items: center;
-    padding: 12px 8px 10px;
-    cursor: pointer; gap: 4px;
-    color: var(--text-muted); font-size: 11px; font-family: var(--mono);
-    transition: color 0.2s;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .nav-item svg { width: 22px; height: 22px; }
-  .nav-item.active { color: var(--accent); }
-  .nav-item .nav-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); display: none; }
-  .nav-item.active .nav-dot { display: block; }
-
-  /* ── PAGES ── */
-  .page { display: none; padding: 16px; padding-bottom: 100px; }
-  .page.active { display: block; animation: fadeUp 0.25s ease; }
-
-  /* ── DASHBOARD ── */
-  .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-
-  .stat-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-  }
-
-  .stat-val { font-family: var(--mono); font-size: 28px; font-weight: 600; color: var(--accent); }
-  .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
-
-  .section-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px; margin-top: 20px;
-  }
-
-  .section-head h3 { font-size: 13px; font-family: var(--mono); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
-
-  .report-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: border-color 0.2s;
-    animation: fadeUp 0.2s ease;
-  }
-
-  .report-card:hover, .report-card:active { border-color: var(--accent); }
-
-  .report-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-  .report-card-title { font-weight: 600; font-size: 15px; }
-  .report-card-date { font-family: var(--mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-  .report-card-sub { font-size: 13px; color: var(--text-muted); }
-
-  .badge {
-    display: inline-flex; align-items: center; padding: 3px 9px;
-    border-radius: 20px; font-size: 11px; font-family: var(--mono); font-weight: 600;
-    text-transform: uppercase;
-  }
-
-  .badge-pending { background: rgba(244,185,66,0.15); color: var(--accent); }
-  .badge-complete { background: rgba(80,250,123,0.12); color: var(--success); }
-  .badge-draft { background: rgba(123,130,160,0.15); color: var(--text-muted); }
-
-  /* ── NEW REPORT FORM ── */
-  .form-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-    margin-bottom: 16px;
-  }
-
-  .form-card h3 { font-size: 13px; font-family: var(--mono); color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; }
-
-  /* ── PHOTO CAPTURE ── */
-  .photo-section { margin-top: 8px; }
-
-  .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
-
-  .photo-thumb {
-    aspect-ratio: 1; border-radius: 8px; overflow: hidden;
-    position: relative; background: var(--surface2); border: 1px solid var(--border);
-  }
-
-  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
-
-  .photo-thumb .remove-photo {
-    position: absolute; top: 4px; right: 4px;
-    background: rgba(0,0,0,0.7); color: #fff;
-    border: none; border-radius: 50%; width: 22px; height: 22px;
-    cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center;
-  }
-
-  .photo-add-btn {
-    aspect-ratio: 1; border-radius: 8px;
-    background: var(--surface2); border: 2px dashed var(--border);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 6px; cursor: pointer; color: var(--text-muted); font-size: 12px;
-    transition: border-color 0.2s;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .photo-add-btn:hover, .photo-add-btn:active { border-color: var(--accent); color: var(--accent); }
-  .photo-add-btn svg { width: 28px; height: 28px; }
-
-  /* ── ADMIN / CONFIG ── */
-  .question-item {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px;
-    margin-bottom: 8px;
-    display: flex; align-items: center; gap: 12px;
-  }
-
-  .question-item-info { flex: 1; }
-  .question-item-label { font-size: 14px; font-weight: 500; }
-  .question-item-type { font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
-  .drag-handle { color: var(--text-muted); cursor: grab; padding: 4px; }
-
-  .add-question-form {
-    background: var(--surface);
-    border: 1px solid var(--accent);
-    border-radius: var(--radius);
-    padding: 20px;
-    margin-top: 16px;
-    animation: fadeUp 0.2s ease;
-  }
-
-  .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-
-  .type-option {
-    padding: 10px 12px; border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--surface2);
-    cursor: pointer; font-size: 13px; text-align: center;
-    transition: all 0.15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .type-option:hover, .type-option.selected { border-color: var(--accent); color: var(--accent); background: rgba(244,185,66,0.08); }
-
-  /* ── REPORT DETAIL ── */
-  .detail-overlay {
-    position: fixed; inset: 0; background: var(--bg); z-index: 200;
-    display: none; flex-direction: column;
-    animation: slideUp 0.3s ease;
-  }
-
-  .detail-overlay.open { display: flex; }
-
-  .detail-topbar {
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 14px 16px;
-    display: flex; align-items: center; gap: 12px;
-    position: sticky; top: 0;
-  }
-
-  .detail-content { flex: 1; overflow-y: auto; padding: 20px 16px 40px; }
-
-  .detail-field { margin-bottom: 20px; }
-  .detail-field-label { font-family: var(--mono); font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
-  .detail-field-value { font-size: 15px; line-height: 1.5; }
-
-  .detail-photos { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-  .detail-photo { aspect-ratio: 1; border-radius: 8px; overflow: hidden; }
-  .detail-photo img { width: 100%; height: 100%; object-fit: cover; }
-
-  /* ── TOAST ── */
-  .toast {
-    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
-    background: var(--surface2); border: 1px solid var(--border);
-    padding: 12px 20px; border-radius: 24px;
-    font-size: 13px; font-family: var(--mono);
-    opacity: 0; pointer-events: none;
-    transition: all 0.3s; white-space: nowrap; z-index: 999;
-  }
-
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .toast.success { border-color: var(--success); color: var(--success); }
-  .toast.error { border-color: var(--danger); color: #ff8080; }
-
-  /* ── LOADING ── */
-  .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 40px auto; }
-
-  .loading-overlay {
-    position: fixed; inset: 0; background: rgba(15,17,23,0.85);
-    display: flex; align-items: center; justify-content: center; z-index: 500;
-    display: none;
-  }
-
-  .loading-overlay.show { display: flex; }
-
-  /* ── KEYFRAMES ── */
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ── UTILS ── */
-  .mt8 { margin-top: 8px; }
-  .mt16 { margin-top: 16px; }
-  .flex-row { display: flex; gap: 8px; }
-  .flex-1 { flex: 1; }
-  .text-muted { color: var(--text-muted); font-size: 13px; }
-  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
-  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
-  .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4; }
-  .empty-state p { font-size: 14px; }
-
-  input[type="file"] { display: none; }
-
-  /* Config notice */
-  .config-notice {
-    background: rgba(244,185,66,0.1);
-    border: 1px solid rgba(244,185,66,0.3);
-    border-radius: 8px;
-    padding: 14px 16px;
-    font-size: 13px;
-    color: var(--accent);
-    margin-bottom: 20px;
-  }
-  .config-notice code {
-    background: rgba(244,185,66,0.2);
-    padding: 1px 5px;
-    border-radius: 4px;
-    font-family: var(--mono);
-    font-size: 12px;
-  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;-webkit-font-smoothing:antialiased}
+
+  .screen{display:none;min-height:100vh;flex-direction:column}
+  .screen.active{display:flex}
+
+  #authScreen{background:var(--bg);align-items:center;justify-content:center;padding:24px}
+  .auth-box{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 32px;animation:fadeUp .4s ease}
+  .logo{display:flex;align-items:center;gap:10px;margin-bottom:32px}
+  .logo-icon{width:40px;height:40px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px}
+  .logo-text{font-family:var(--mono);font-size:18px;font-weight:600;letter-spacing:-.5px}
+  .logo-text span{color:var(--accent)}
+  h2{font-size:22px;font-weight:600;margin-bottom:6px}
+  .subtitle{color:var(--text-muted);font-size:14px;margin-bottom:28px}
+  label{display:block;font-size:12px;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;margin-top:16px}
+  input[type="email"],input[type="password"],input[type="text"],input[type="number"],input[type="date"],textarea,select{
+    width:100%;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+    color:var(--text);font-family:var(--sans);font-size:15px;transition:border-color .2s;-webkit-appearance:none}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+  textarea{resize:vertical;min-height:90px}
+  select option{background:var(--surface2)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border-radius:var(--radius);font-family:var(--sans);font-size:15px;font-weight:500;cursor:pointer;border:none;transition:all .18s;-webkit-tap-highlight-color:transparent}
+  .btn-primary{background:var(--accent);color:#111;width:100%;margin-top:24px}
+  .btn-primary:hover{background:#f5c96a}
+  .btn-primary:active{transform:scale(.98)}
+  .btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-danger{background:var(--danger);color:#fff}
+  .btn-sm{padding:8px 14px;font-size:13px}
+  .auth-toggle{text-align:center;margin-top:20px;font-size:14px;color:var(--text-muted)}
+  .auth-toggle a{color:var(--accent);text-decoration:none;cursor:pointer}
+  .error-msg{background:rgba(255,85,85,.12);border:1px solid rgba(255,85,85,.3);color:#ff8080;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:14px;display:none}
+  .error-msg.show{display:block}
+
+  #appScreen{background:var(--bg)}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .topbar-title{font-family:var(--mono);font-size:15px;font-weight:600}
+  .topbar-title span{color:var(--accent)}
+  .user-chip{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);padding:6px 12px;border-radius:20px;font-size:12px;color:var(--text-muted)}
+
+  .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 8px 10px;cursor:pointer;gap:4px;color:var(--text-muted);font-size:11px;font-family:var(--mono);transition:color .2s;-webkit-tap-highlight-color:transparent}
+  .nav-item svg{width:22px;height:22px}
+  .nav-item.active{color:var(--accent)}
+  .nav-dot{width:4px;height:4px;border-radius:50%;background:var(--accent);display:none}
+  .nav-item.active .nav-dot{display:block}
+
+  .page{display:none;padding:16px;padding-bottom:100px}
+  .page.active{display:block;animation:fadeUp .25s ease}
+
+  .stats-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+  .stat-val{font-family:var(--mono);font-size:28px;font-weight:600;color:var(--accent)}
+  .stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+  .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:20px}
+  .section-head h3{font-size:13px;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em}
+  .report-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;cursor:pointer;transition:border-color .2s;animation:fadeUp .2s ease}
+  .report-card:hover,.report-card:active{border-color:var(--accent)}
+  .report-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .report-card-title{font-weight:600;font-size:15px}
+  .report-card-sub{font-size:13px;color:var(--text-muted)}
+  .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-family:var(--mono);font-weight:600;text-transform:uppercase}
+  .badge-pending{background:rgba(244,185,66,.15);color:var(--accent)}
+  .badge-complete{background:rgba(80,250,123,.12);color:var(--success)}
+  .badge-draft{background:rgba(123,130,160,.15);color:var(--text-muted)}
+
+  .form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+  .form-card h3{font-size:13px;font-family:var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+
+  .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  .photo-thumb{aspect-ratio:1;border-radius:8px;overflow:hidden;position:relative;background:var(--surface2);border:1px solid var(--border)}
+  .photo-thumb img{width:100%;height:100%;object-fit:cover}
+  .remove-photo{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.7);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .photo-add-btn{aspect-ratio:1;border-radius:8px;background:var(--surface2);border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;color:var(--text-muted);font-size:12px;transition:border-color .2s;-webkit-tap-highlight-color:transparent;text-align:center;padding:8px}
+  .photo-add-btn:hover,.photo-add-btn:active{border-color:var(--accent);color:var(--accent)}
+  .photo-add-btn svg{width:28px;height:28px}
+
+  .question-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+  .question-item-info{flex:1}
+  .question-item-label{font-size:14px;font-weight:500}
+  .question-item-type{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-top:2px}
+  .drag-handle{color:var(--text-muted);padding:4px}
+  .add-question-form{background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);padding:20px;margin-top:16px;animation:fadeUp .2s ease}
+  .type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .type-option{padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:13px;text-align:center;transition:all .15s;-webkit-tap-highlight-color:transparent}
+  .type-option:hover,.type-option.selected{border-color:var(--accent);color:var(--accent);background:rgba(244,185,66,.08)}
+
+  .detail-overlay{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;flex-direction:column}
+  .detail-overlay.open{display:flex;animation:slideUp .3s ease}
+  .detail-topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0}
+  .detail-content{flex:1;overflow-y:auto;padding:20px 16px 40px}
+  .detail-field{margin-bottom:20px}
+  .detail-field-label{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+  .detail-field-value{font-size:15px;line-height:1.5}
+  .detail-photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+  .detail-photo{aspect-ratio:1;border-radius:8px;overflow:hidden}
+  .detail-photo img{width:100%;height:100%;object-fit:cover}
+
+  .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border);padding:12px 20px;border-radius:24px;font-size:13px;font-family:var(--mono);opacity:0;pointer-events:none;transition:all .3s;white-space:nowrap;z-index:999}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.success{border-color:var(--success);color:var(--success)}
+  .toast.error{border-color:var(--danger);color:#ff8080}
+
+  .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:40px auto}
+  .loading-overlay{position:fixed;inset:0;background:rgba(15,17,23,.85);align-items:center;justify-content:center;z-index:500;display:none}
+  .loading-overlay.show{display:flex}
+
+  .config-notice{background:rgba(244,185,66,.1);border:1px solid rgba(244,185,66,.3);border-radius:8px;padding:14px 16px;font-size:13px;color:var(--accent);margin-bottom:20px}
+  .config-notice code{background:rgba(244,185,66,.2);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12px}
+  .mt16{margin-top:16px} .flex-row{display:flex;gap:8px} .flex-1{flex:1}
+  .text-muted{color:var(--text-muted);font-size:13px}
+  .divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+  .empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
+  .empty-state svg{width:48px;height:48px;margin-bottom:12px;opacity:.4}
+  .empty-state p{font-size:14px}
+  input[type="file"]{display:none}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
-
 <body>
 
-<!-- ═══════════════ AUTH SCREEN ═══════════════ -->
+<!-- ═══ AUTH ═══ -->
 <div id="authScreen" class="screen active">
   <div class="auth-box">
     <div class="logo">
@@ -430,66 +150,50 @@ if (typeof window._onFirebaseReady === 'function') {
     </div>
     <h2 id="authTitle">Welcome back</h2>
     <p class="subtitle" id="authSubtitle">Sign in to access your field reports</p>
-
     <label>Email</label>
     <input type="email" id="authEmail" placeholder="you@company.com" autocomplete="email"/>
-
     <label>Password</label>
     <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password"/>
-
     <div id="authError" class="error-msg"></div>
-
-    <button class="btn btn-primary" onclick="handleAuth()">
+    <button class="btn btn-primary" id="authBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"><path d="M15 3h6v18h-6M10 17l5-5-5-5M15 12H3"/></svg>
       <span id="authBtnText">Sign In</span>
     </button>
-
     <div class="auth-toggle">
       <span id="authToggleText">Don't have an account?</span>
-      <a onclick="toggleAuthMode()"> <span id="authToggleLink">Create account</span></a>
+      <a id="authToggleLink"> Create account</a>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════ APP SCREEN ═══════════════ -->
+<!-- ═══ APP ═══ -->
 <div id="appScreen" class="screen">
-
-  <!-- Top Bar -->
   <div class="topbar">
     <div class="topbar-title">Field<span>Ops</span></div>
     <div class="user-chip">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
       <span id="userEmailChip"></span>
-      <span style="cursor:pointer;color:var(--danger)" onclick="handleSignOut()">✕</span>
+      <span id="signOutBtn" style="cursor:pointer;color:var(--danger);padding-left:4px">✕</span>
     </div>
   </div>
 
-  <!-- Pages -->
+  <!-- Dashboard -->
   <div id="pageDashboard" class="page active">
     <div id="configNotice" class="config-notice" style="display:none">
-      ⚠️ Firebase not configured. Edit the <code>firebaseConfig</code> in the HTML file with your project credentials. No Storage needed — photos are saved directly in Firestore.
+      ⚠️ Firebase not configured. Replace the <code>firebaseConfig</code> values in the &lt;script&gt; at the bottom of this file. No Storage needed — photos save directly to Firestore.
     </div>
     <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-val" id="statTotal">—</div>
-        <div class="stat-label">Total Reports</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="statToday">—</div>
-        <div class="stat-label">Today</div>
-      </div>
+      <div class="stat-card"><div class="stat-val" id="statTotal">—</div><div class="stat-label">Total Reports</div></div>
+      <div class="stat-card"><div class="stat-val" id="statToday">—</div><div class="stat-label">Today</div></div>
     </div>
-
     <div class="section-head">
       <h3>Recent Reports</h3>
-      <button class="btn btn-ghost btn-sm" onclick="loadReports()">↻ Refresh</button>
+      <button class="btn btn-ghost btn-sm" id="refreshBtn">↻ Refresh</button>
     </div>
-
-    <div id="reportsList">
-      <div class="spinner"></div>
-    </div>
+    <div id="reportsList"><div class="spinner"></div></div>
   </div>
 
+  <!-- New Report -->
   <div id="pageNewReport" class="page">
     <div class="form-card">
       <h3>📋 Report Info</h3>
@@ -504,752 +208,551 @@ if (typeof window._onFirebaseReady === 'function') {
         <option value="draft">Draft</option>
       </select>
     </div>
-
     <div class="form-card">
       <h3>🔧 Field Questions</h3>
       <div id="dynamicFields"></div>
     </div>
-
     <div class="form-card">
-      <h3>📸 Photos</h3>
-      <p class="text-muted">Tap to capture or choose from gallery</p>
-      <div class="photo-section">
-        <div class="photo-grid" id="photoGrid">
-          <div class="photo-add-btn" onclick="document.getElementById('cameraInput').click()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            Camera
-          </div>
-        </div>
-        <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple onchange="handlePhotoCapture(event)"/>
-      </div>
+      <h3>📸 General Photos</h3>
+      <p class="text-muted">Additional photos not tied to a specific question</p>
+      <div class="photo-grid" id="photoGrid"></div>
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple/>
     </div>
-
     <div class="flex-row mt16">
-      <button class="btn btn-ghost flex-1" onclick="clearForm()">Clear</button>
-      <button class="btn btn-primary flex-1" onclick="submitReport()" style="margin-top:0">
+      <button class="btn btn-ghost flex-1" id="clearBtn">Clear</button>
+      <button class="btn btn-primary flex-1" id="submitBtn" style="margin-top:0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"><polyline points="20 6 9 17 4 12"/></svg>
         Submit Report
       </button>
     </div>
   </div>
 
+  <!-- Configure -->
   <div id="pageAdmin" class="page">
     <div class="form-card">
       <h3>⚙️ Report Questions</h3>
-      <p class="text-muted">Configure the questions shown in every field report. Drag to reorder.</p>
+      <p class="text-muted">Configure the questions shown in every field report.</p>
       <div id="questionsList" style="margin-top:16px"></div>
-      <button class="btn btn-ghost btn-sm mt8" onclick="toggleAddQuestion()" id="addQBtn" style="width:100%;margin-top:12px">
-        + Add Question
-      </button>
+      <button class="btn btn-ghost btn-sm" id="addQBtn" style="width:100%;margin-top:12px">+ Add Question</button>
     </div>
-
     <div id="addQuestionForm" class="add-question-form" style="display:none">
       <h3 style="font-size:13px;font-family:var(--mono);color:var(--accent2);margin-bottom:14px;text-transform:uppercase;letter-spacing:.08em">New Question</h3>
       <label>Question Label *</label>
       <input type="text" id="newQLabel" placeholder="e.g. Equipment Serial Number"/>
       <label>Field Type</label>
       <div class="type-grid" id="typeGrid">
-        <div class="type-option selected" data-type="text" onclick="selectType(this)">📝 Text</div>
-        <div class="type-option" data-type="textarea" onclick="selectType(this)">📄 Long Text</div>
-        <div class="type-option" data-type="number" onclick="selectType(this)">🔢 Number</div>
-        <div class="type-option" data-type="select" onclick="selectType(this)">📋 Dropdown</div>
-        <div class="type-option" data-type="checkbox" onclick="selectType(this)">☑️ Checkbox</div>
-        <div class="type-option" data-type="date" onclick="selectType(this)">📅 Date</div>
-        <div class="type-option" data-type="photo" onclick="selectType(this)" style="grid-column:span 2">📸 Photo Capture</div>
+        <div class="type-option selected" data-type="text">📝 Text</div>
+        <div class="type-option" data-type="textarea">📄 Long Text</div>
+        <div class="type-option" data-type="number">🔢 Number</div>
+        <div class="type-option" data-type="select">📋 Dropdown</div>
+        <div class="type-option" data-type="checkbox">☑️ Checkbox</div>
+        <div class="type-option" data-type="date">📅 Date</div>
+        <div class="type-option" data-type="photo" style="grid-column:span 2">📸 Photo Capture</div>
       </div>
       <div id="selectOptionsArea" style="display:none">
         <label>Options (comma-separated)</label>
         <input type="text" id="newQOptions" placeholder="Option A, Option B, Option C"/>
       </div>
-      <label style="margin-top:14px">
-        <input type="checkbox" id="newQRequired" style="width:auto;margin-right:6px"/>
-        Required field
-      </label>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="newQRequired" style="width:auto;accent-color:var(--accent)"/>
+        <span style="font-size:14px;color:var(--text-muted)">Required field</span>
+      </div>
       <div class="flex-row mt16">
-        <button class="btn btn-ghost flex-1" onclick="toggleAddQuestion()">Cancel</button>
-        <button class="btn btn-primary flex-1" onclick="saveQuestion()" style="margin-top:0">Save Question</button>
+        <button class="btn btn-ghost flex-1" id="cancelQBtn">Cancel</button>
+        <button class="btn btn-primary flex-1" id="saveQBtn" style="margin-top:0">Save Question</button>
       </div>
     </div>
   </div>
 
-  <!-- Bottom Nav -->
   <nav class="bottom-nav">
-    <div class="nav-item active" onclick="switchPage('Dashboard')" id="nav-Dashboard">
+    <div class="nav-item active" id="nav-Dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      Dashboard
-      <div class="nav-dot"></div>
+      Dashboard<div class="nav-dot"></div>
     </div>
-    <div class="nav-item" onclick="switchPage('NewReport')" id="nav-NewReport">
+    <div class="nav-item" id="nav-NewReport">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-      New Report
-      <div class="nav-dot"></div>
+      New Report<div class="nav-dot"></div>
     </div>
-    <div class="nav-item" onclick="switchPage('Admin')" id="nav-Admin">
+    <div class="nav-item" id="nav-Admin">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-      Configure
-      <div class="nav-dot"></div>
+      Configure<div class="nav-dot"></div>
     </div>
   </nav>
 </div>
 
-<!-- Report Detail Overlay -->
+<!-- Detail Overlay -->
 <div id="detailOverlay" class="detail-overlay">
   <div class="detail-topbar">
-    <button class="btn btn-ghost btn-sm" onclick="closeDetail()">← Back</button>
+    <button class="btn btn-ghost btn-sm" id="closeDetailBtn">← Back</button>
     <span id="detailTitle" style="font-weight:600;font-size:15px;flex:1;margin-left:8px"></span>
   </div>
   <div class="detail-content" id="detailContent"></div>
 </div>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
 
-<!-- Loading -->
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="spinner"></div>
-</div>
+<!-- ═══════════════════════════════════════════════════════
+     SINGLE MODULE SCRIPT — Firebase + all app logic here
+     ═══════════════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp }
+  from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword,
+         signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs,
+         doc, setDoc, query, orderBy, serverTimestamp, deleteDoc }
+  from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
-<script>
-// ─── State ───
-let currentUser = null;
-let questions = [];
-let photos = []; // base64 array
-let capturedPhotos = []; // {base64, name}
-let questionPhotos = {}; // { [questionId]: [{base64, name}] }
-let isSignUp = false;
-let selectedType = 'text';
-let reports = [];
+// =============================================
+// 🔥 PASTE YOUR FIREBASE CONFIG HERE
+// =============================================
+const firebaseConfig = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT.firebaseapp.com",
+  projectId:         "YOUR_PROJECT_ID",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
+};
+// =============================================
 
-// ─── Helpers ───
-function showToast(msg, type = '') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + type;
-  setTimeout(() => t.className = 'toast', 2800);
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ── State ────────────────────────────────────
+let currentUser    = null;
+let questions      = [];
+let capturedPhotos = [];  // [{base64}]
+let questionPhotos = {};  // {qid:[{base64}]}
+let reports        = [];
+let isSignUp       = false;
+let selectedType   = 'text';
+
+// ── Tiny helpers ─────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = s => String(s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function showToast(msg, type='') {
+  const t=$('toast'); t.textContent=msg;
+  t.className='toast show '+type;
+  setTimeout(()=>t.className='toast',2800);
+}
+function setLoading(v){ $('loadingOverlay').className='loading-overlay'+(v?' show':''); }
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(name+'Screen').classList.add('active');
+}
+function switchPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  $('page'+name).classList.add('active');
+  $('nav-'+name).classList.add('active');
+  if(name==='NewReport') renderDynamicFields();
 }
 
-function setLoading(show) {
-  document.getElementById('loadingOverlay').className = 'loading-overlay' + (show ? ' show' : '');
+// ── Auth ─────────────────────────────────────
+function toggleAuthMode(){
+  isSignUp=!isSignUp;
+  $('authTitle').textContent      = isSignUp?'Create account':'Welcome back';
+  $('authSubtitle').textContent   = isSignUp?'Start tracking field reports':'Sign in to access your field reports';
+  $('authBtnText').textContent    = isSignUp?'Create Account':'Sign In';
+  $('authToggleText').textContent = isSignUp?'Already have an account?':"Don't have an account?";
+  $('authToggleLink').textContent = isSignUp?' Sign in':' Create account';
+  $('authError').classList.remove('show');
 }
 
-function switchPage(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page' + name).classList.add('active');
-  document.getElementById('nav-' + name).classList.add('active');
-  if (name === 'NewReport') renderDynamicFields();
-}
-
-function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(name + 'Screen').classList.add('active');
-}
-
-// ─── Auth ───
-function toggleAuthMode() {
-  isSignUp = !isSignUp;
-  document.getElementById('authTitle').textContent = isSignUp ? 'Create account' : 'Welcome back';
-  document.getElementById('authSubtitle').textContent = isSignUp ? 'Start tracking field reports' : 'Sign in to access your field reports';
-  document.getElementById('authBtnText').textContent = isSignUp ? 'Create Account' : 'Sign In';
-  document.getElementById('authToggleText').textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
-  document.getElementById('authToggleLink').textContent = isSignUp ? 'Sign in' : 'Create account';
-  document.getElementById('authError').classList.remove('show');
-}
-
-async function handleAuth() {
-  const { auth, createUserWithEmailAndPassword, signInWithEmailAndPassword } = window._firebase;
-  const email = document.getElementById('authEmail').value.trim();
-  const pass = document.getElementById('authPassword').value;
-  const errEl = document.getElementById('authError');
-  errEl.classList.remove('show');
-
-  if (!email || !pass) { errEl.textContent = 'Please enter email and password.'; errEl.classList.add('show'); return; }
-
+async function handleAuth(){
+  const email=$('authEmail').value.trim();
+  const pass=$('authPassword').value;
+  const err=$('authError');
+  err.classList.remove('show');
+  if(!email||!pass){ err.textContent='Please enter email and password.'; err.classList.add('show'); return; }
   setLoading(true);
-  try {
-    if (isSignUp) {
-      await createUserWithEmailAndPassword(auth, email, pass);
-    } else {
-      await signInWithEmailAndPassword(auth, email, pass);
-    }
-  } catch (e) {
-    errEl.textContent = friendlyError(e.code);
-    errEl.classList.add('show');
+  try{
+    if(isSignUp) await createUserWithEmailAndPassword(auth,email,pass);
+    else         await signInWithEmailAndPassword(auth,email,pass);
+  }catch(e){
+    const map={
+      'auth/user-not-found':'No account found with this email.',
+      'auth/wrong-password':'Incorrect password.',
+      'auth/email-already-in-use':'Email already in use. Try signing in.',
+      'auth/weak-password':'Password must be at least 6 characters.',
+      'auth/invalid-email':'Invalid email address.',
+      'auth/invalid-credential':'Invalid email or password.',
+    };
+    err.textContent=map[e.code]||'Error: '+e.message;
+    err.classList.add('show');
   }
   setLoading(false);
 }
 
-function friendlyError(code) {
-  const map = {
-    'auth/user-not-found': 'No account found with this email.',
-    'auth/wrong-password': 'Incorrect password.',
-    'auth/email-already-in-use': 'Email already in use. Try signing in.',
-    'auth/weak-password': 'Password must be at least 6 characters.',
-    'auth/invalid-email': 'Invalid email address.',
-    'auth/invalid-credential': 'Invalid email or password.',
-  };
-  return map[code] || 'Authentication failed. Check your Firebase config.';
-}
-
-async function handleSignOut() {
-  const { auth, signOut } = window._firebase;
-  await signOut(auth);
-}
-
-// ─── App Init ───
-function initApp() {
-  const { auth, onAuthStateChanged } = window._firebase;
-  onAuthStateChanged(auth, user => {
-    if (user) {
-      currentUser = user;
-      document.getElementById('userEmailChip').textContent = user.email.split('@')[0];
-      showScreen('app');
-      loadQuestions();
-      loadReports();
-      checkFirebaseConfig();
-    } else {
-      currentUser = null;
-      showScreen('auth');
-    }
-  });
-}
-
-// Handle both load orders: module-first or regular-script-first
-window._onFirebaseReady = initApp;
-if (window._firebaseReady) initApp();
-
-function checkFirebaseConfig() {
-  const notice = document.getElementById('configNotice');
-  if (window._firebase.auth.app.options.apiKey === 'YOUR_API_KEY') {
-    notice.style.display = 'block';
+// ── Auth state listener ───────────────────────
+onAuthStateChanged(auth, user=>{
+  if(user){
+    currentUser=user;
+    $('userEmailChip').textContent=user.email.split('@')[0];
+    showScreen('app');
+    loadQuestions();
+    loadReports();
+    if(firebaseConfig.apiKey==='YOUR_API_KEY') $('configNotice').style.display='block';
+  }else{
+    currentUser=null;
+    showScreen('auth');
   }
+});
+
+// ── Questions ────────────────────────────────
+async function loadQuestions(){
+  try{
+    const snap=await getDocs(query(collection(db,'questions'),orderBy('order')));
+    questions=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch{
+    questions=[
+      {id:'q1',label:'Location / Site',     type:'text',    required:true, order:0},
+      {id:'q2',label:'Technician Name',      type:'text',    required:true, order:1},
+      {id:'q3',label:'Equipment / Asset ID', type:'text',    required:false,order:2},
+      {id:'q4',label:'Work Performed',        type:'textarea',required:true, order:3},
+      {id:'q5',label:'Service Condition',     type:'select',  required:true, order:4,options:['Good','Fair','Poor','Critical']},
+      {id:'q6',label:'Follow-up Required',    type:'checkbox',required:false,order:5},
+      {id:'q7',label:'Additional Notes',      type:'textarea',required:false,order:6},
+    ];
+  }
+  renderQuestionsList();
 }
 
-// ─── Questions (Firestore) ───
-async function loadQuestions() {
-  const { db, collection, getDocs, query, orderBy } = window._firebase;
-  try {
-    const snap = await getDocs(query(collection(db, 'questions'), orderBy('order')));
-    questions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderQuestionsList();
-  } catch (e) {
-    // Default questions if no config yet
-    if (!questions.length) {
-      questions = [
-        { id: 'q1', label: 'Location / Site', type: 'text', required: true, order: 0 },
-        { id: 'q2', label: 'Technician Name', type: 'text', required: true, order: 1 },
-        { id: 'q3', label: 'Equipment / Asset ID', type: 'text', required: false, order: 2 },
-        { id: 'q4', label: 'Work Performed', type: 'textarea', required: true, order: 3 },
-        { id: 'q5', label: 'Service Condition', type: 'select', options: ['Good','Fair','Poor','Critical'], required: true, order: 4 },
-        { id: 'q6', label: 'Follow-up Required', type: 'checkbox', required: false, order: 5 },
-        { id: 'q7', label: 'Additional Notes', type: 'textarea', required: false, order: 6 },
-      ];
-      renderQuestionsList();
-    }
-  }
-}
+const ICONS={text:'📝',textarea:'📄',number:'🔢',select:'📋',checkbox:'☑️',date:'📅',photo:'📸'};
 
-function renderQuestionsList() {
-  const el = document.getElementById('questionsList');
-  if (!questions.length) {
-    el.innerHTML = '<p class="text-muted" style="text-align:center;padding:20px 0">No questions yet. Add one below.</p>';
-    return;
-  }
-  const typeIcons = { text:'📝', textarea:'📄', number:'🔢', select:'📋', checkbox:'☑️', date:'📅', photo:'📸' };
-  el.innerHTML = questions.map((q, i) => `
+function renderQuestionsList(){
+  const el=$('questionsList');
+  if(!questions.length){el.innerHTML='<p class="text-muted" style="text-align:center;padding:20px 0">No questions yet. Add one below.</p>';return;}
+  el.innerHTML=questions.map((q,i)=>`
     <div class="question-item">
       <span class="drag-handle">⠿</span>
       <div class="question-item-info">
-        <div class="question-item-label">${typeIcons[q.type] || '📝'} ${q.label} ${q.required ? '<span style="color:var(--accent)">*</span>' : ''}</div>
-        <div class="question-item-type">${q.type}${q.options ? ' · ' + q.options.join(', ') : ''}</div>
+        <div class="question-item-label">${ICONS[q.type]||'📝'} ${esc(q.label)}${q.required?' <span style="color:var(--accent)">*</span>':''}</div>
+        <div class="question-item-type">${q.type}${q.options?' · '+q.options.join(', '):''}</div>
       </div>
-      <button class="btn btn-danger btn-sm" onclick="deleteQuestion('${q.id}', ${i})">✕</button>
-    </div>
-  `).join('');
+      <button class="btn btn-danger btn-sm" data-delidx="${i}" data-delid="${esc(q.id)}">✕</button>
+    </div>`).join('');
 }
 
-async function deleteQuestion(id, idx) {
-  const { db, doc, deleteDoc } = window._firebase;
-  questions.splice(idx, 1);
-  renderQuestionsList();
-  try { await deleteDoc(doc(db, 'questions', id)); } catch(e) {}
-  showToast('Question removed', 'success');
+async function deleteQuestion(id,idx){
+  questions.splice(idx,1); renderQuestionsList();
+  try{await deleteDoc(doc(db,'questions',id));}catch{}
+  showToast('Question removed','success');
 }
 
-function toggleAddQuestion() {
-  const form = document.getElementById('addQuestionForm');
-  form.style.display = form.style.display === 'none' ? 'block' : 'none';
-  if (form.style.display === 'block') {
-    document.getElementById('newQLabel').value = '';
-    document.getElementById('newQOptions').value = '';
-    document.getElementById('newQRequired').checked = false;
-    selectedType = 'text';
-    document.querySelectorAll('.type-option').forEach(o => o.classList.remove('selected'));
+function toggleAddQuestion(show){
+  $('addQuestionForm').style.display=show?'block':'none';
+  if(show){
+    $('newQLabel').value='';$('newQOptions').value='';$('newQRequired').checked=false;
+    selectedType='text';
+    document.querySelectorAll('.type-option').forEach(o=>o.classList.remove('selected'));
     document.querySelector('[data-type="text"]').classList.add('selected');
-    document.getElementById('selectOptionsArea').style.display = 'none';
+    $('selectOptionsArea').style.display='none';
   }
 }
 
-function selectType(el) {
-  document.querySelectorAll('.type-option').forEach(o => o.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedType = el.dataset.type;
-  document.getElementById('selectOptionsArea').style.display = selectedType === 'select' ? 'block' : 'none';
-}
-
-async function saveQuestion() {
-  const { db, collection, addDoc, serverTimestamp } = window._firebase;
-  const label = document.getElementById('newQLabel').value.trim();
-  if (!label) { showToast('Please enter a question label', 'error'); return; }
-
-  const q = {
-    label,
-    type: selectedType,
-    required: document.getElementById('newQRequired').checked,
-    order: questions.length,
-    createdAt: Date.now()
-  };
-
-  if (selectedType === 'select') {
-    const opts = document.getElementById('newQOptions').value;
-    q.options = opts.split(',').map(o => o.trim()).filter(Boolean);
-    if (!q.options.length) { showToast('Add at least one option', 'error'); return; }
+async function saveQuestion(){
+  const label=$('newQLabel').value.trim();
+  if(!label){showToast('Please enter a question label','error');return;}
+  const q={label,type:selectedType,required:$('newQRequired').checked,order:questions.length,createdAt:Date.now()};
+  if(selectedType==='select'){
+    q.options=$('newQOptions').value.split(',').map(o=>o.trim()).filter(Boolean);
+    if(!q.options.length){showToast('Add at least one option','error');return;}
   }
-
   setLoading(true);
-  try {
-    const docRef = await addDoc(collection(db, 'questions'), q);
-    q.id = docRef.id;
-    questions.push(q);
-    renderQuestionsList();
-    toggleAddQuestion();
-    showToast('Question saved ✓', 'success');
-  } catch (e) {
-    // Offline / no config — still add locally
-    q.id = 'local_' + Date.now();
-    questions.push(q);
-    renderQuestionsList();
-    toggleAddQuestion();
-    showToast('Saved locally (configure Firebase to sync)', '');
-  }
+  try{const r=await addDoc(collection(db,'questions'),q);q.id=r.id;}
+  catch{q.id='local_'+Date.now();}
+  questions.push(q);
+  renderQuestionsList();
+  toggleAddQuestion(false);
+  showToast('Question saved ✓','success');
   setLoading(false);
 }
 
-// ─── Dynamic Form ───
-// Per-question photo storage: { [questionId]: [{base64, name}] }
-let questionPhotos = {};
-
-function renderDynamicFields() {
-  const el = document.getElementById('dynamicFields');
-  document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
-  questionPhotos = {};
-
-  if (!questions.length) {
-    el.innerHTML = '<p class="text-muted">No questions configured. Go to Configure tab to add questions.</p>';
-    return;
-  }
-
-  el.innerHTML = questions.map(q => {
-    const req = q.required ? ' *' : '';
-    let input = '';
-    switch (q.type) {
-      case 'textarea':
-        input = `<textarea id="field_${q.id}" placeholder="Enter ${q.label.toLowerCase()}..."></textarea>`;
-        break;
-      case 'number':
-        input = `<input type="number" id="field_${q.id}" placeholder="0"/>`;
-        break;
-      case 'date':
-        input = `<input type="date" id="field_${q.id}"/>`;
-        break;
-      case 'checkbox':
-        input = `<label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer">
-          <input type="checkbox" id="field_${q.id}" style="width:auto;accent-color:var(--accent)"/>
-          <span style="font-size:14px">Yes</span>
-        </label>`;
-        break;
-      case 'select':
-        const opts = (q.options || []).map(o => `<option value="${o}">${o}</option>`).join('');
-        input = `<select id="field_${q.id}"><option value="">Select...</option>${opts}</select>`;
-        break;
+// ── Dynamic report form ───────────────────────
+function renderDynamicFields(){
+  const el=$('dynamicFields');
+  $('reportDate').value=new Date().toISOString().split('T')[0];
+  questionPhotos={};
+  if(!questions.length){el.innerHTML='<p class="text-muted">No questions configured. Go to Configure tab.</p>';return;}
+  el.innerHTML=questions.map(q=>{
+    const req=q.required?' *':'';
+    let input='';
+    switch(q.type){
+      case 'textarea': input=`<textarea id="field_${q.id}" placeholder="Enter ${esc(q.label).toLowerCase()}..."></textarea>`;break;
+      case 'number':   input=`<input type="number" id="field_${q.id}" placeholder="0"/>`;break;
+      case 'date':     input=`<input type="date" id="field_${q.id}"/>`;break;
+      case 'checkbox': input=`<label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer"><input type="checkbox" id="field_${q.id}" style="width:auto;accent-color:var(--accent)"/><span>Yes</span></label>`;break;
+      case 'select':{
+        const opts=(q.options||[]).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
+        input=`<select id="field_${q.id}"><option value="">Select...</option>${opts}</select>`;break;
+      }
       case 'photo':
-        questionPhotos[q.id] = [];
-        input = `
-          <div class="q-photo-section" id="qphoto_wrap_${q.id}">
-            <div class="photo-grid" id="qphoto_grid_${q.id}">
-              <div class="photo-add-btn" onclick="document.getElementById('qphoto_input_${q.id}').click()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                Tap to capture
-              </div>
-            </div>
-            <input type="file" id="qphoto_input_${q.id}" accept="image/*" capture="environment" multiple
-              onchange="handleQuestionPhoto(event, '${q.id}')"/>
-          </div>`;
+        questionPhotos[q.id]=[];
+        input=`<div class="photo-grid" id="qgrid_${q.id}"></div><input type="file" id="qinput_${q.id}" accept="image/*" capture="environment" multiple/>`;
         break;
-      default:
-        input = `<input type="text" id="field_${q.id}" placeholder="Enter ${q.label.toLowerCase()}..."/>`;
+      default: input=`<input type="text" id="field_${q.id}" placeholder="Enter ${esc(q.label).toLowerCase()}..."/>`;
     }
-    return `<div style="margin-bottom:18px"><label>${q.label}${req}</label>${input}</div>`;
+    return `<div style="margin-bottom:18px"><label>${esc(q.label)}${req}</label>${input}</div>`;
   }).join('');
-}
 
-function handleQuestionPhoto(event, qid) {
-  const files = Array.from(event.target.files);
-  if (!questionPhotos[qid]) questionPhotos[qid] = [];
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      questionPhotos[qid].push({ base64: e.target.result, name: file.name });
-      renderQuestionPhotoGrid(qid);
-    };
-    reader.readAsDataURL(file);
+  // attach file-input listeners for photo questions
+  Object.keys(questionPhotos).forEach(qid=>{
+    renderQPhotoGrid(qid);
+    const inp=$('qinput_'+qid);
+    if(inp) inp.addEventListener('change',e=>handleQPhoto(e,qid));
   });
-  event.target.value = '';
 }
 
-function renderQuestionPhotoGrid(qid) {
-  const grid = document.getElementById('qphoto_grid_' + qid);
-  if (!grid) return;
-  const photos = questionPhotos[qid] || [];
-  const thumbs = photos.map((p, i) => `
+function renderQPhotoGrid(qid){
+  const grid=$('qgrid_'+qid); if(!grid) return;
+  const photos=questionPhotos[qid]||[];
+  grid.innerHTML=photos.map((p,i)=>`
     <div class="photo-thumb">
-      <img src="${p.base64}" alt="photo"/>
-      <button class="remove-photo" onclick="removeQuestionPhoto('${qid}', ${i})">✕</button>
-    </div>
-  `).join('');
-  grid.innerHTML = thumbs + `
-    <div class="photo-add-btn" onclick="document.getElementById('qphoto_input_${qid}').click()">
+      <img src="${p.base64}"/>
+      <button class="remove-photo" data-qid="${qid}" data-idx="${i}">✕</button>
+    </div>`).join('')+
+    `<div class="photo-add-btn" data-addqid="${qid}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      Add more
-    </div>`;
+      ${photos.length?'Add more':'Tap to capture'}</div>`;
 }
 
-function removeQuestionPhoto(qid, idx) {
-  questionPhotos[qid].splice(idx, 1);
-  renderQuestionPhotoGrid(qid);
-}
-
-// ─── Photos (General section) ───
-function handlePhotoCapture(event) {
-  const files = Array.from(event.target.files);
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      capturedPhotos.push({ base64: e.target.result, name: file.name });
-      renderPhotoGrid();
-    };
-    reader.readAsDataURL(file);
+function handleQPhoto(e,qid){
+  Array.from(e.target.files).forEach(f=>{
+    const r=new FileReader();
+    r.onload=ev=>{questionPhotos[qid].push({base64:ev.target.result});renderQPhotoGrid(qid);};
+    r.readAsDataURL(f);
   });
-  event.target.value = '';
+  e.target.value='';
 }
 
-function renderPhotoGrid() {
-  const grid = document.getElementById('photoGrid');
-  const thumbs = capturedPhotos.map((p, i) => `
+// ── General photos ────────────────────────────
+function renderPhotoGrid(){
+  $('photoGrid').innerHTML=capturedPhotos.map((p,i)=>`
     <div class="photo-thumb">
-      <img src="${p.base64}" alt="photo ${i+1}"/>
-      <button class="remove-photo" onclick="removePhoto(${i})">✕</button>
-    </div>
-  `).join('');
-  grid.innerHTML = thumbs + `
-    <div class="photo-add-btn" onclick="document.getElementById('cameraInput').click()">
+      <img src="${p.base64}"/>
+      <button class="remove-photo" data-genidx="${i}">✕</button>
+    </div>`).join('')+
+    `<div class="photo-add-btn" id="generalAddBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      Camera
-    </div>`;
+      ${capturedPhotos.length?'Add more':'Camera'}</div>`;
 }
 
-function removePhoto(idx) {
-  capturedPhotos.splice(idx, 1);
-  renderPhotoGrid();
-}
-
-// ─── Image Compression ───
-// Compresses a base64 image to max ~200KB JPEG for Firestore storage
-function compressImage(base64, maxWidthPx = 1024, qualitySteps = [0.7, 0.5, 0.35]) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let w = img.width, h = img.height;
-      if (w > maxWidthPx) { h = Math.round(h * maxWidthPx / w); w = maxWidthPx; }
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      // Try progressively lower quality until under ~200KB (≈270K base64 chars)
-      for (const q of qualitySteps) {
-        const result = canvas.toDataURL('image/jpeg', q);
-        if (result.length < 270000) { resolve(result); return; }
-      }
-      resolve(canvas.toDataURL('image/jpeg', 0.25));
+// ── Image compression ─────────────────────────
+function compressImage(base64,maxW=1024,qs=[0.7,0.5,0.35]){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      for(const q of qs){const r=c.toDataURL('image/jpeg',q);if(r.length<270000){res(r);return;}}
+      res(c.toDataURL('image/jpeg',0.25));
     };
-    img.onerror = () => resolve(base64); // fallback: original
-    img.src = base64;
+    img.onerror=()=>res(base64);
+    img.src=base64;
   });
 }
 
-// ─── Submit Report ───
-async function submitReport() {
-  const { db, collection, addDoc, doc, setDoc, serverTimestamp } = window._firebase;
+// ── Submit report ─────────────────────────────
+async function submitReport(){
+  const title=$('reportTitle').value.trim();
+  const date=$('reportDate').value;
+  const status=$('reportStatus').value;
+  if(!title){showToast('Please enter a report title','error');return;}
+  if(!date){showToast('Please select a date','error');return;}
 
-  const title = document.getElementById('reportTitle').value.trim();
-  const date = document.getElementById('reportDate').value;
-  const status = document.getElementById('reportStatus').value;
-
-  if (!title) { showToast('Please enter a report title', 'error'); return; }
-  if (!date) { showToast('Please select a date', 'error'); return; }
-
-  // Collect field values + validate
-  const fieldData = {};
-  let valid = true;
-  questions.forEach(q => {
-    if (q.type === 'photo') {
-      const photos = questionPhotos[q.id] || [];
-      if (q.required && photos.length === 0) {
-        showToast(`"${q.label}" requires at least one photo`, 'error');
-        valid = false;
-      }
-      fieldData[q.id] = { label: q.label, type: 'photo', photoCount: photos.length };
-      return;
+  const fieldData={}; let valid=true;
+  questions.forEach(q=>{
+    if(q.type==='photo'){
+      const photos=questionPhotos[q.id]||[];
+      if(q.required&&!photos.length){showToast(`"${q.label}" requires at least one photo`,'error');valid=false;}
+      fieldData[q.id]={label:q.label,type:'photo',photoCount:photos.length};return;
     }
-    const el = document.getElementById('field_' + q.id);
-    if (!el) return;
-    const val = q.type === 'checkbox' ? el.checked : el.value;
-    if (q.required && !val && val !== false) {
-      showToast(`"${q.label}" is required`, 'error');
-      valid = false;
-    }
-    fieldData[q.id] = { label: q.label, type: q.type, value: val };
+    const el=$('field_'+q.id);if(!el)return;
+    const val=q.type==='checkbox'?el.checked:el.value;
+    if(q.required&&!val&&val!==false){showToast(`"${q.label}" is required`,'error');valid=false;}
+    fieldData[q.id]={label:q.label,type:q.type,value:val};
   });
-  if (!valid) return;
+  if(!valid) return;
 
-  setLoading(true);
-  showToast('Compressing photos…', '');
+  setLoading(true); showToast('Compressing photos…','');
 
-  // Compress general photos
-  const compressedGeneral = [];
-  for (const p of capturedPhotos) {
-    compressedGeneral.push(await compressImage(p.base64));
+  const compGen=[];
+  for(const p of capturedPhotos) compGen.push(await compressImage(p.base64));
+
+  const compQ={};
+  for(const [qid,photos] of Object.entries(questionPhotos)){
+    compQ[qid]=[];
+    for(const p of photos) compQ[qid].push(await compressImage(p.base64));
   }
 
-  // Compress per-question photos
-  const compressedQPhotos = {}; // { qid: [base64, ...] }
-  for (const [qid, photos] of Object.entries(questionPhotos)) {
-    compressedQPhotos[qid] = [];
-    for (const p of photos) {
-      compressedQPhotos[qid].push(await compressImage(p.base64));
-    }
-  }
+  const totalPhotoCount=compGen.length+Object.values(compQ).reduce((s,a)=>s+a.length,0);
+  const report={title,date,status,fields:fieldData,photoCount:compGen.length,totalPhotoCount,
+    userId:currentUser.uid,userEmail:currentUser.email,createdAt:serverTimestamp(),createdAtMs:Date.now()};
 
-  // Total photo count
-  const totalPhotoCount = compressedGeneral.length +
-    Object.values(compressedQPhotos).reduce((sum, a) => sum + a.length, 0);
-
-  const report = {
-    title, date, status,
-    fields: fieldData,
-    photoCount: compressedGeneral.length,
-    totalPhotoCount,
-    userId: currentUser.uid,
-    userEmail: currentUser.email,
-    createdAt: serverTimestamp(),
-    createdAtMs: Date.now()
-  };
-
-  try {
-    const docRef = await addDoc(collection(db, 'reports'), report);
-
-    // Store general photos
-    for (let i = 0; i < compressedGeneral.length; i++) {
-      await setDoc(doc(db, 'reports', docRef.id, 'photos', 'general_' + i), {
-        data: compressedGeneral[i], index: i, group: 'general'
-      });
-    }
-
-    // Store per-question photos
-    for (const [qid, photos] of Object.entries(compressedQPhotos)) {
-      for (let i = 0; i < photos.length; i++) {
-        await setDoc(doc(db, 'reports', docRef.id, 'photos', `q_${qid}_${i}`), {
-          data: photos[i], index: i, group: 'question', questionId: qid
-        });
-      }
-    }
-
-    showToast('Report submitted ✓', 'success');
-    clearForm();
-    loadReports();
-    switchPage('Dashboard');
-  } catch (e) {
-    showToast('Error: ' + e.message, 'error');
-  }
+  try{
+    const docRef=await addDoc(collection(db,'reports'),report);
+    for(let i=0;i<compGen.length;i++)
+      await setDoc(doc(db,'reports',docRef.id,'photos','general_'+i),{data:compGen[i],index:i,group:'general'});
+    for(const [qid,photos] of Object.entries(compQ))
+      for(let i=0;i<photos.length;i++)
+        await setDoc(doc(db,'reports',docRef.id,'photos',`q_${qid}_${i}`),{data:photos[i],index:i,group:'question',questionId:qid});
+    showToast('Report submitted ✓','success');
+    clearForm();loadReports();switchPage('Dashboard');
+  }catch(e){showToast('Error: '+e.message,'error');}
   setLoading(false);
 }
 
-function clearForm() {
-  document.getElementById('reportTitle').value = '';
-  document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
-  document.getElementById('reportStatus').value = 'pending';
-  capturedPhotos = [];
-  questionPhotos = {};
-  renderPhotoGrid();
-  renderDynamicFields();
+function clearForm(){
+  $('reportTitle').value='';
+  $('reportDate').value=new Date().toISOString().split('T')[0];
+  $('reportStatus').value='pending';
+  capturedPhotos=[];questionPhotos={};
+  renderPhotoGrid();renderDynamicFields();
 }
 
-// ─── Load Reports ───
-async function loadReports() {
-  const { db, collection, getDocs, query, orderBy } = window._firebase;
-  const el = document.getElementById('reportsList');
-  el.innerHTML = '<div class="spinner"></div>';
-  try {
-    const snap = await getDocs(query(collection(db, 'reports'), orderBy('createdAtMs', 'desc')));
-    reports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+// ── Load & render reports ─────────────────────
+async function loadReports(){
+  const el=$('reportsList');el.innerHTML='<div class="spinner"></div>';
+  try{
+    const snap=await getDocs(query(collection(db,'reports'),orderBy('createdAtMs','desc')));
+    reports=snap.docs.map(d=>({id:d.id,...d.data()}));
     renderReports();
-  } catch (e) {
-    el.innerHTML = '<p class="text-muted" style="text-align:center;padding:30px">Could not load reports. Check Firebase configuration.</p>';
-  }
+  }catch{el.innerHTML='<p class="text-muted" style="text-align:center;padding:30px">Could not load reports. Check Firebase config.</p>';}
 }
 
-function renderReports() {
-  const el = document.getElementById('reportsList');
-  const today = new Date().toISOString().split('T')[0];
-  const todayCount = reports.filter(r => r.date === today).length;
-
-  document.getElementById('statTotal').textContent = reports.length;
-  document.getElementById('statToday').textContent = todayCount;
-
-  if (!reports.length) {
-    el.innerHTML = `<div class="empty-state">
+function renderReports(){
+  const el=$('reportsList');
+  const today=new Date().toISOString().split('T')[0];
+  $('statTotal').textContent=reports.length;
+  $('statToday').textContent=reports.filter(r=>r.date===today).length;
+  if(!reports.length){
+    el.innerHTML=`<div class="empty-state">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      <p>No reports yet.<br/>Tap New Report to get started.</p>
-    </div>`;
+      <p>No reports yet.<br/>Tap New Report to get started.</p></div>`;
     return;
   }
-
-  el.innerHTML = reports.map(r => `
-    <div class="report-card" onclick="openDetail('${r.id}')">
+  el.innerHTML=reports.map(r=>`
+    <div class="report-card" data-rid="${r.id}">
       <div class="report-card-top">
-        <div class="report-card-title">${escHtml(r.title)}</div>
+        <div class="report-card-title">${esc(r.title)}</div>
         <span class="badge badge-${r.status}">${r.status}</span>
       </div>
-      <div class="report-card-sub">
-        📅 ${r.date} · 👤 ${escHtml(r.userEmail || '')}
-        ${r.photos && r.photos.length ? ` · 📸 ${r.photos.length}` : ''}
-      </div>
-    </div>
-  `).join('');
+      <div class="report-card-sub">📅 ${r.date} · 👤 ${esc(r.userEmail||'')}${r.totalPhotoCount?' · 📸 '+r.totalPhotoCount:''}</div>
+    </div>`).join('');
 }
 
-function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ─── Report Detail ───
-async function openDetail(id) {
-  const r = reports.find(x => x.id === id);
-  if (!r) return;
-
-  document.getElementById('detailTitle').textContent = r.title;
-  document.getElementById('detailOverlay').classList.add('open');
-
-  const fields = r.fields || {};
-
-  // Build field rows — photo fields get a placeholder loaded async
-  const fieldRows = Object.values(fields).map(f => {
-    if (f.type === 'photo') {
-      return `<div class="detail-field" id="detail_qphoto_${Object.keys(fields).find(k => fields[k] === f)}">
-        <div class="detail-field-label">📸 ${escHtml(f.label)}</div>
-        <div class="text-muted" style="font-size:13px">${f.photoCount > 0 ? 'Loading ' + f.photoCount + ' photo(s)…' : 'No photos captured'}</div>
-      </div>`;
-    }
-    return `<div class="detail-field">
-      <div class="detail-field-label">${escHtml(f.label)}</div>
-      <div class="detail-field-value">${f.type === 'checkbox' ? (f.value ? '✅ Yes' : '☐ No') : escHtml(String(f.value || '—'))}</div>
-    </div>`;
+// ── Detail view ───────────────────────────────
+async function openDetail(id){
+  const r=reports.find(x=>x.id===id);if(!r)return;
+  $('detailTitle').textContent=r.title;
+  $('detailOverlay').classList.add('open');
+  const fields=r.fields||{};
+  const rows=Object.entries(fields).map(([qid,f])=>{
+    if(f.type==='photo')
+      return `<div class="detail-field" id="dqp_${qid}"><div class="detail-field-label">📸 ${esc(f.label)}</div><div class="text-muted">${f.photoCount>0?'Loading '+f.photoCount+' photo(s)…':'No photos'}</div></div>`;
+    return `<div class="detail-field"><div class="detail-field-label">${esc(f.label)}</div><div class="detail-field-value">${f.type==='checkbox'?(f.value?'✅ Yes':'☐ No'):esc(String(f.value||'—'))}</div></div>`;
   }).join('');
+  $('detailContent').innerHTML=`
+    <div class="detail-field"><div class="detail-field-label">Date</div><div class="detail-field-value">${r.date}</div></div>
+    <div class="detail-field"><div class="detail-field-label">Status</div><div class="detail-field-value"><span class="badge badge-${r.status}">${r.status}</span></div></div>
+    <div class="detail-field"><div class="detail-field-label">Submitted by</div><div class="detail-field-value">${esc(r.userEmail||'')}</div></div>
+    <hr class="divider"/>${rows}
+    ${r.photoCount>0?`<div class="detail-field" id="dgeneral"><div class="detail-field-label">📸 General Photos</div><div class="text-muted">Loading…</div></div>`:''}`;
 
-  document.getElementById('detailContent').innerHTML = `
-    <div class="detail-field">
-      <div class="detail-field-label">Date</div>
-      <div class="detail-field-value">${r.date}</div>
-    </div>
-    <div class="detail-field">
-      <div class="detail-field-label">Status</div>
-      <div class="detail-field-value"><span class="badge badge-${r.status}">${r.status}</span></div>
-    </div>
-    <div class="detail-field">
-      <div class="detail-field-label">Submitted by</div>
-      <div class="detail-field-value">${escHtml(r.userEmail || '')}</div>
-    </div>
-    <hr class="divider"/>
-    ${fieldRows}
-    ${(r.photoCount > 0) ? `
-    <div class="detail-field" id="photoSection">
-      <div class="detail-field-label">📸 General Photos (${r.photoCount})</div>
-      <div class="text-muted" style="font-size:13px">Loading photos…</div>
-    </div>` : ''}
-  `;
-
-  // Load all photos from sub-collection and distribute
-  if (r.totalPhotoCount > 0 || r.photoCount > 0) {
-    try {
-      const { db, collection, getDocs } = window._firebase;
-      const snap = await getDocs(collection(db, 'reports', id, 'photos'));
-      const allPhotos = snap.docs.map(d => d.data());
-
-      // General photos
-      const generalPhotos = allPhotos.filter(p => p.group === 'general' || p.group === undefined).sort((a,b) => a.index - b.index);
-      const photoSection = document.getElementById('photoSection');
-      if (photoSection && generalPhotos.length) {
-        photoSection.innerHTML = `
-          <div class="detail-field-label">📸 General Photos (${generalPhotos.length})</div>
-          <div class="detail-photos">${generalPhotos.map(p => `<div class="detail-photo"><img src="${p.data}" loading="lazy"/></div>`).join('')}</div>`;
-      } else if (photoSection) {
-        photoSection.remove();
-      }
-
-      // Per-question photos
-      const qPhotos = allPhotos.filter(p => p.group === 'question');
-      const grouped = {};
-      qPhotos.forEach(p => {
-        if (!grouped[p.questionId]) grouped[p.questionId] = [];
-        grouped[p.questionId].push(p);
+  if((r.totalPhotoCount||0)>0||(r.photoCount||0)>0){
+    try{
+      const snap=await getDocs(collection(db,'reports',id,'photos'));
+      const all=snap.docs.map(d=>d.data());
+      const gen=all.filter(p=>p.group==='general'||!p.group).sort((a,b)=>a.index-b.index);
+      const dgen=$('dgeneral');
+      if(dgen) dgen.innerHTML=gen.length
+        ?`<div class="detail-field-label">📸 General Photos (${gen.length})</div><div class="detail-photos">${gen.map(p=>`<div class="detail-photo"><img src="${p.data}" loading="lazy"/></div>`).join('')}</div>`
+        :'';
+      const byQ={};
+      all.filter(p=>p.group==='question').forEach(p=>{if(!byQ[p.questionId])byQ[p.questionId]=[];byQ[p.questionId].push(p);});
+      Object.entries(byQ).forEach(([qid,photos])=>{
+        const el=$('dqp_'+qid);if(!el)return;
+        photos.sort((a,b)=>a.index-b.index);
+        const lbl=el.querySelector('.detail-field-label').innerHTML;
+        el.innerHTML=`<div class="detail-field-label">${lbl}</div><div class="detail-photos">${photos.map(p=>`<div class="detail-photo"><img src="${p.data}" loading="lazy"/></div>`).join('')}</div>`;
       });
-      Object.entries(grouped).forEach(([qid, photos]) => {
-        const el = document.getElementById('detail_qphoto_' + qid);
-        if (!el) return;
-        photos.sort((a,b) => a.index - b.index);
-        const label = el.querySelector('.detail-field-label').textContent;
-        el.innerHTML = `
-          <div class="detail-field-label">${label}</div>
-          <div class="detail-photos">${photos.map(p => `<div class="detail-photo"><img src="${p.data}" loading="lazy"/></div>`).join('')}</div>`;
-      });
-
-      // Clear loading state for question photo fields with 0 photos
-      document.querySelectorAll('[id^="detail_qphoto_"]').forEach(el => {
-        const loadingEl = el.querySelector('.text-muted');
-        if (loadingEl && loadingEl.textContent.includes('Loading')) {
-          loadingEl.textContent = 'No photos captured';
-        }
-      });
-
-    } catch(e) {
-      const photoSection = document.getElementById('photoSection');
-      if (photoSection) photoSection.innerHTML = '<div class="detail-field-label">Photos</div><div class="text-muted">Could not load photos.</div>';
-    }
+      document.querySelectorAll('[id^="dqp_"]').forEach(el=>{const m=el.querySelector('.text-muted');if(m)m.textContent='No photos';});
+    }catch(e){console.error('Photo load error',e);}
   }
 }
 
-function closeDetail() {
-  document.getElementById('detailOverlay').classList.remove('open');
-}
+// ── Wire up ALL event listeners ───────────────
+// Auth
+$('authBtn').addEventListener('click', handleAuth);
+$('authToggleLink').addEventListener('click', toggleAuthMode);
+$('authEmail').addEventListener('keydown', e=>{if(e.key==='Enter')$('authPassword').focus();});
+$('authPassword').addEventListener('keydown', e=>{if(e.key==='Enter')handleAuth();});
 
-// ─── Keyboard helpers ───
-document.getElementById('authEmail').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('authPassword').focus(); });
-document.getElementById('authPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
+// Sign out
+$('signOutBtn').addEventListener('click', ()=>signOut(auth));
 
-// Init photo grid
-window.addEventListener('load', () => {
-  renderPhotoGrid();
+// Nav
+$('nav-Dashboard').addEventListener('click', ()=>switchPage('Dashboard'));
+$('nav-NewReport').addEventListener('click', ()=>switchPage('NewReport'));
+$('nav-Admin').addEventListener('click', ()=>switchPage('Admin'));
+
+// Dashboard
+$('refreshBtn').addEventListener('click', loadReports);
+$('reportsList').addEventListener('click', e=>{const c=e.target.closest('[data-rid]');if(c)openDetail(c.dataset.rid);});
+
+// Form
+$('submitBtn').addEventListener('click', submitReport);
+$('clearBtn').addEventListener('click', clearForm);
+
+// General camera
+$('cameraInput').addEventListener('change', e=>{
+  Array.from(e.target.files).forEach(f=>{const r=new FileReader();r.onload=ev=>{capturedPhotos.push({base64:ev.target.result});renderPhotoGrid();};r.readAsDataURL(f);});
+  e.target.value='';
 });
+$('photoGrid').addEventListener('click', e=>{
+  if(e.target.closest('#generalAddBtn')){$('cameraInput').click();return;}
+  const rb=e.target.closest('[data-genidx]');
+  if(rb){capturedPhotos.splice(+rb.dataset.genidx,1);renderPhotoGrid();}
+});
+
+// Question photo grids (delegated on dynamicFields container)
+$('dynamicFields').addEventListener('click', e=>{
+  const addBtn=e.target.closest('[data-addqid]');
+  if(addBtn){$('qinput_'+addBtn.dataset.addqid)?.click();return;}
+  const rm=e.target.closest('.remove-photo[data-qid]');
+  if(rm){questionPhotos[rm.dataset.qid].splice(+rm.dataset.idx,1);renderQPhotoGrid(rm.dataset.qid);}
+});
+
+// Questions config
+$('questionsList').addEventListener('click', e=>{
+  const btn=e.target.closest('[data-delidx]');
+  if(btn) deleteQuestion(btn.dataset.delid,+btn.dataset.delidx);
+});
+$('typeGrid').addEventListener('click', e=>{
+  const opt=e.target.closest('.type-option');if(!opt)return;
+  document.querySelectorAll('.type-option').forEach(o=>o.classList.remove('selected'));
+  opt.classList.add('selected');
+  selectedType=opt.dataset.type;
+  $('selectOptionsArea').style.display=selectedType==='select'?'block':'none';
+});
+$('addQBtn').addEventListener('click', ()=>toggleAddQuestion(true));
+$('cancelQBtn').addEventListener('click', ()=>toggleAddQuestion(false));
+$('saveQBtn').addEventListener('click', saveQuestion);
+
+// Detail
+$('closeDetailBtn').addEventListener('click', ()=>$('detailOverlay').classList.remove('open'));
+
+// Init
+renderPhotoGrid();
 </script>
 </body>
 </html>
