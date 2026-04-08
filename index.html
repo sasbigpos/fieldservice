@@ -16,11 +16,11 @@ import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, query, 
 // 🔥 PASTE YOUR FIREBASE CONFIG HERE
 // =============================================
 const firebaseConfig = {
-  apiKey: "AIzaSyDujE6P2_sdm2-R0lUceeZcmuoDQX8xFNs",
-  authDomain: "field-service-50f7b.firebaseapp.com",
-  projectId: "field-service-50f7b",
-  messagingSenderId: "730907816470",
-  appId: "1:730907816470:web:3487641b6131e6cd3cfb37"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 // =============================================
 
@@ -549,6 +549,7 @@ window.dispatchEvent(new Event('firebaseReady'));
         <div class="type-option" data-type="select" onclick="selectType(this)">📋 Dropdown</div>
         <div class="type-option" data-type="checkbox" onclick="selectType(this)">☑️ Checkbox</div>
         <div class="type-option" data-type="date" onclick="selectType(this)">📅 Date</div>
+        <div class="type-option" data-type="photo" onclick="selectType(this)" style="grid-column:span 2">📸 Photo Capture</div>
       </div>
       <div id="selectOptionsArea" style="display:none">
         <label>Options (comma-separated)</label>
@@ -608,6 +609,7 @@ let currentUser = null;
 let questions = [];
 let photos = []; // base64 array
 let capturedPhotos = []; // {base64, name}
+let questionPhotos = {}; // { [questionId]: [{base64, name}] }
 let isSignUp = false;
 let selectedType = 'text';
 let reports = [];
@@ -743,11 +745,12 @@ function renderQuestionsList() {
     el.innerHTML = '<p class="text-muted" style="text-align:center;padding:20px 0">No questions yet. Add one below.</p>';
     return;
   }
+  const typeIcons = { text:'📝', textarea:'📄', number:'🔢', select:'📋', checkbox:'☑️', date:'📅', photo:'📸' };
   el.innerHTML = questions.map((q, i) => `
     <div class="question-item">
       <span class="drag-handle">⠿</span>
       <div class="question-item-info">
-        <div class="question-item-label">${q.label} ${q.required ? '<span style="color:var(--accent)">*</span>' : ''}</div>
+        <div class="question-item-label">${typeIcons[q.type] || '📝'} ${q.label} ${q.required ? '<span style="color:var(--accent)">*</span>' : ''}</div>
         <div class="question-item-type">${q.type}${q.options ? ' · ' + q.options.join(', ') : ''}</div>
       </div>
       <button class="btn btn-danger btn-sm" onclick="deleteQuestion('${q.id}', ${i})">✕</button>
@@ -823,10 +826,13 @@ async function saveQuestion() {
 }
 
 // ─── Dynamic Form ───
+// Per-question photo storage: { [questionId]: [{base64, name}] }
+let questionPhotos = {};
+
 function renderDynamicFields() {
   const el = document.getElementById('dynamicFields');
-  // Set today's date
   document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
+  questionPhotos = {};
 
   if (!questions.length) {
     el.innerHTML = '<p class="text-muted">No questions configured. Go to Configure tab to add questions.</p>';
@@ -856,16 +862,64 @@ function renderDynamicFields() {
         const opts = (q.options || []).map(o => `<option value="${o}">${o}</option>`).join('');
         input = `<select id="field_${q.id}"><option value="">Select...</option>${opts}</select>`;
         break;
+      case 'photo':
+        questionPhotos[q.id] = [];
+        input = `
+          <div class="q-photo-section" id="qphoto_wrap_${q.id}">
+            <div class="photo-grid" id="qphoto_grid_${q.id}">
+              <div class="photo-add-btn" onclick="document.getElementById('qphoto_input_${q.id}').click()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Tap to capture
+              </div>
+            </div>
+            <input type="file" id="qphoto_input_${q.id}" accept="image/*" capture="environment" multiple
+              onchange="handleQuestionPhoto(event, '${q.id}')"/>
+          </div>`;
+        break;
       default:
         input = `<input type="text" id="field_${q.id}" placeholder="Enter ${q.label.toLowerCase()}..."/>`;
     }
-    return `<div style="margin-bottom:14px"><label>${q.label}${req}</label>${input}</div>`;
+    return `<div style="margin-bottom:18px"><label>${q.label}${req}</label>${input}</div>`;
   }).join('');
 }
 
-// ─── Photos ───
-capturedPhotos = [];
+function handleQuestionPhoto(event, qid) {
+  const files = Array.from(event.target.files);
+  if (!questionPhotos[qid]) questionPhotos[qid] = [];
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      questionPhotos[qid].push({ base64: e.target.result, name: file.name });
+      renderQuestionPhotoGrid(qid);
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
 
+function renderQuestionPhotoGrid(qid) {
+  const grid = document.getElementById('qphoto_grid_' + qid);
+  if (!grid) return;
+  const photos = questionPhotos[qid] || [];
+  const thumbs = photos.map((p, i) => `
+    <div class="photo-thumb">
+      <img src="${p.base64}" alt="photo"/>
+      <button class="remove-photo" onclick="removeQuestionPhoto('${qid}', ${i})">✕</button>
+    </div>
+  `).join('');
+  grid.innerHTML = thumbs + `
+    <div class="photo-add-btn" onclick="document.getElementById('qphoto_input_${qid}').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Add more
+    </div>`;
+}
+
+function removeQuestionPhoto(qid, idx) {
+  questionPhotos[qid].splice(idx, 1);
+  renderQuestionPhotoGrid(qid);
+}
+
+// ─── Photos (General section) ───
 function handlePhotoCapture(event) {
   const files = Array.from(event.target.files);
   files.forEach(file => {
@@ -925,7 +979,7 @@ function compressImage(base64, maxWidthPx = 1024, qualitySteps = [0.7, 0.5, 0.35
 
 // ─── Submit Report ───
 async function submitReport() {
-  const { db, collection, addDoc, serverTimestamp } = window._firebase;
+  const { db, collection, addDoc, doc, setDoc, serverTimestamp } = window._firebase;
 
   const title = document.getElementById('reportTitle').value.trim();
   const date = document.getElementById('reportDate').value;
@@ -934,10 +988,19 @@ async function submitReport() {
   if (!title) { showToast('Please enter a report title', 'error'); return; }
   if (!date) { showToast('Please select a date', 'error'); return; }
 
-  // Collect field values
+  // Collect field values + validate
   const fieldData = {};
   let valid = true;
   questions.forEach(q => {
+    if (q.type === 'photo') {
+      const photos = questionPhotos[q.id] || [];
+      if (q.required && photos.length === 0) {
+        showToast(`"${q.label}" requires at least one photo`, 'error');
+        valid = false;
+      }
+      fieldData[q.id] = { label: q.label, type: 'photo', photoCount: photos.length };
+      return;
+    }
     const el = document.getElementById('field_' + q.id);
     if (!el) return;
     const val = q.type === 'checkbox' ? el.checked : el.value;
@@ -952,20 +1015,30 @@ async function submitReport() {
   setLoading(true);
   showToast('Compressing photos…', '');
 
-  // Compress all photos and store as Base64 in Firestore
-  const compressedPhotos = [];
+  // Compress general photos
+  const compressedGeneral = [];
   for (const p of capturedPhotos) {
-    const compressed = await compressImage(p.base64);
-    compressedPhotos.push(compressed);
+    compressedGeneral.push(await compressImage(p.base64));
   }
 
-  // Firestore document limit is 1MB. If too large, store photos in sub-collection.
+  // Compress per-question photos
+  const compressedQPhotos = {}; // { qid: [base64, ...] }
+  for (const [qid, photos] of Object.entries(questionPhotos)) {
+    compressedQPhotos[qid] = [];
+    for (const p of photos) {
+      compressedQPhotos[qid].push(await compressImage(p.base64));
+    }
+  }
+
+  // Total photo count
+  const totalPhotoCount = compressedGeneral.length +
+    Object.values(compressedQPhotos).reduce((sum, a) => sum + a.length, 0);
+
   const report = {
-    title,
-    date,
-    status,
+    title, date, status,
     fields: fieldData,
-    photoCount: compressedPhotos.length,
+    photoCount: compressedGeneral.length,
+    totalPhotoCount,
     userId: currentUser.uid,
     userEmail: currentUser.email,
     createdAt: serverTimestamp(),
@@ -975,13 +1048,20 @@ async function submitReport() {
   try {
     const docRef = await addDoc(collection(db, 'reports'), report);
 
-    // Store each photo as a separate sub-document to avoid 1MB Firestore limit
-    for (let i = 0; i < compressedPhotos.length; i++) {
-      const { doc, setDoc } = window._firebase;
-      await setDoc(doc(db, 'reports', docRef.id, 'photos', String(i)), {
-        data: compressedPhotos[i],
-        index: i
+    // Store general photos
+    for (let i = 0; i < compressedGeneral.length; i++) {
+      await setDoc(doc(db, 'reports', docRef.id, 'photos', 'general_' + i), {
+        data: compressedGeneral[i], index: i, group: 'general'
       });
+    }
+
+    // Store per-question photos
+    for (const [qid, photos] of Object.entries(compressedQPhotos)) {
+      for (let i = 0; i < photos.length; i++) {
+        await setDoc(doc(db, 'reports', docRef.id, 'photos', `q_${qid}_${i}`), {
+          data: photos[i], index: i, group: 'question', questionId: qid
+        });
+      }
     }
 
     showToast('Report submitted ✓', 'success');
@@ -999,6 +1079,7 @@ function clearForm() {
   document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('reportStatus').value = 'pending';
   capturedPhotos = [];
+  questionPhotos = {};
   renderPhotoGrid();
   renderDynamicFields();
 }
@@ -1060,14 +1141,21 @@ async function openDetail(id) {
   document.getElementById('detailOverlay').classList.add('open');
 
   const fields = r.fields || {};
-  const fieldHTML = Object.values(fields).map(f => `
-    <div class="detail-field">
+
+  // Build field rows — photo fields get a placeholder loaded async
+  const fieldRows = Object.values(fields).map(f => {
+    if (f.type === 'photo') {
+      return `<div class="detail-field" id="detail_qphoto_${Object.keys(fields).find(k => fields[k] === f)}">
+        <div class="detail-field-label">📸 ${escHtml(f.label)}</div>
+        <div class="text-muted" style="font-size:13px">${f.photoCount > 0 ? 'Loading ' + f.photoCount + ' photo(s)…' : 'No photos captured'}</div>
+      </div>`;
+    }
+    return `<div class="detail-field">
       <div class="detail-field-label">${escHtml(f.label)}</div>
       <div class="detail-field-value">${f.type === 'checkbox' ? (f.value ? '✅ Yes' : '☐ No') : escHtml(String(f.value || '—'))}</div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
-  // Show fields immediately, load photos async
   document.getElementById('detailContent').innerHTML = `
     <div class="detail-field">
       <div class="detail-field-label">Date</div>
@@ -1082,27 +1170,57 @@ async function openDetail(id) {
       <div class="detail-field-value">${escHtml(r.userEmail || '')}</div>
     </div>
     <hr class="divider"/>
-    ${fieldHTML}
-    ${r.photoCount > 0 ? `
+    ${fieldRows}
+    ${(r.photoCount > 0) ? `
     <div class="detail-field" id="photoSection">
-      <div class="detail-field-label">Photos (${r.photoCount})</div>
-      <div style="color:var(--text-muted);font-size:13px">Loading photos…</div>
+      <div class="detail-field-label">📸 General Photos (${r.photoCount})</div>
+      <div class="text-muted" style="font-size:13px">Loading photos…</div>
     </div>` : ''}
   `;
 
-  // Load photos from sub-collection
-  if (r.photoCount > 0) {
+  // Load all photos from sub-collection and distribute
+  if (r.totalPhotoCount > 0 || r.photoCount > 0) {
     try {
-      const { db, collection, getDocs, query, orderBy } = window._firebase;
-      const snap = await getDocs(query(collection(db, 'reports', id, 'photos'), orderBy('index')));
-      const photos = snap.docs.map(d => d.data().data);
+      const { db, collection, getDocs } = window._firebase;
+      const snap = await getDocs(collection(db, 'reports', id, 'photos'));
+      const allPhotos = snap.docs.map(d => d.data());
+
+      // General photos
+      const generalPhotos = allPhotos.filter(p => p.group === 'general' || p.group === undefined).sort((a,b) => a.index - b.index);
       const photoSection = document.getElementById('photoSection');
-      if (photoSection) {
+      if (photoSection && generalPhotos.length) {
         photoSection.innerHTML = `
-          <div class="detail-field-label">Photos (${photos.length})</div>
-          <div class="detail-photos">${photos.map(p => `<div class="detail-photo"><img src="${p}" alt="photo" loading="lazy"/></div>`).join('')}</div>
-        `;
+          <div class="detail-field-label">📸 General Photos (${generalPhotos.length})</div>
+          <div class="detail-photos">${generalPhotos.map(p => `<div class="detail-photo"><img src="${p.data}" loading="lazy"/></div>`).join('')}</div>`;
+      } else if (photoSection) {
+        photoSection.remove();
       }
+
+      // Per-question photos
+      const qPhotos = allPhotos.filter(p => p.group === 'question');
+      const grouped = {};
+      qPhotos.forEach(p => {
+        if (!grouped[p.questionId]) grouped[p.questionId] = [];
+        grouped[p.questionId].push(p);
+      });
+      Object.entries(grouped).forEach(([qid, photos]) => {
+        const el = document.getElementById('detail_qphoto_' + qid);
+        if (!el) return;
+        photos.sort((a,b) => a.index - b.index);
+        const label = el.querySelector('.detail-field-label').textContent;
+        el.innerHTML = `
+          <div class="detail-field-label">${label}</div>
+          <div class="detail-photos">${photos.map(p => `<div class="detail-photo"><img src="${p.data}" loading="lazy"/></div>`).join('')}</div>`;
+      });
+
+      // Clear loading state for question photo fields with 0 photos
+      document.querySelectorAll('[id^="detail_qphoto_"]').forEach(el => {
+        const loadingEl = el.querySelector('.text-muted');
+        if (loadingEl && loadingEl.textContent.includes('Loading')) {
+          loadingEl.textContent = 'No photos captured';
+        }
+      });
+
     } catch(e) {
       const photoSection = document.getElementById('photoSection');
       if (photoSection) photoSection.innerHTML = '<div class="detail-field-label">Photos</div><div class="text-muted">Could not load photos.</div>';
