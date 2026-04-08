@@ -30,7 +30,13 @@ const db = getFirestore(app);
 
 window._firebase = { auth, db, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, collection, addDoc, getDocs, doc, setDoc, getDoc, query, orderBy, serverTimestamp, deleteDoc };
 
-window.dispatchEvent(new Event('firebaseReady'));
+// Call the init function if it's already defined (regular script loaded first),
+// otherwise store a flag so the regular script can pick it up.
+if (typeof window._onFirebaseReady === 'function') {
+  window._onFirebaseReady();
+} else {
+  window._firebaseReady = true;
+}
 </script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -691,7 +697,7 @@ async function handleSignOut() {
 }
 
 // ─── App Init ───
-window.addEventListener('firebaseReady', () => {
+function initApp() {
   const { auth, onAuthStateChanged } = window._firebase;
   onAuthStateChanged(auth, user => {
     if (user) {
@@ -706,7 +712,11 @@ window.addEventListener('firebaseReady', () => {
       showScreen('auth');
     }
   });
-});
+}
+
+// Handle both load orders: module-first or regular-script-first
+window._onFirebaseReady = initApp;
+if (window._firebaseReady) initApp();
 
 function checkFirebaseConfig() {
   const notice = document.getElementById('configNotice');
