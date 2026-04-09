@@ -298,7 +298,9 @@ input[type="file"]{display:none}
       </div>
       <div>
         <label>User / Email</label>
-        <input type="text" id="filterUser" placeholder="e.g. john@company.com"/>
+        <select id="filterUser">
+          <option value="">All Users</option>
+        </select>
       </div>
       <div style="margin-top:10px">
         <label>Status</label>
@@ -752,6 +754,13 @@ function renderReports(){
   const today=new Date().toISOString().split('T')[0];
   $('statTotal').textContent=reports.length;
   $('statToday').textContent=reports.filter(r=>r.date===today).length;
+
+  // Populate email dropdown with unique users from all reports
+  const emails=[...new Set(reports.map(r=>r.userEmail||'').filter(Boolean))].sort();
+  const sel=$('filterUser');
+  const current=sel.value;
+  sel.innerHTML='<option value="">All Users</option>'+emails.map(e=>`<option value="${esc(e)}"${e===current?' selected':''}>${esc(e)}</option>`).join('');
+
   if(!reports.length){
     el.innerHTML=`<div class="empty-state">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -796,16 +805,16 @@ function clearFilter(){
 }
 
 function renderFilteredReports(){
-  filteredReports=[...reports]; // reset then re-apply if filters active
+  filteredReports=[...reports];
   const from=$('filterDateFrom').value;
   const to=$('filterDateTo').value;
-  const user=$('filterUser').value.trim().toLowerCase();
+  const user=$('filterUser').value;   // exact email from dropdown, or '' for all
   const status=$('filterStatus').value;
   if(from||to||user||status){
     filteredReports=reports.filter(r=>{
       if(from && r.date<from) return false;
       if(to   && r.date>to)   return false;
-      if(user && !(r.userEmail||'').toLowerCase().includes(user)) return false;
+      if(user && (r.userEmail||'')!==user) return false;
       if(status && r.status!==status) return false;
       return true;
     });
