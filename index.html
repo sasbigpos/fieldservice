@@ -6,137 +6,185 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>FieldOps Report</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<!-- jsPDF for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-  :root {
-    --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --border:#2e3350;
-    --accent:#f4b942; --accent2:#4ecdc4; --danger:#ff5555; --success:#50fa7b;
-    --text:#e8eaf0; --text-muted:#7b82a0; --radius:10px;
-    --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;-webkit-font-smoothing:antialiased}
+/* ── THEME VARIABLES ── */
+:root {
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --border:#2e3350;
+  --accent:#f4b942; --accent2:#4ecdc4; --danger:#ff5555; --success:#50fa7b;
+  --text:#e8eaf0; --text-muted:#7b82a0; --radius:10px;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+  --shadow:0 2px 12px rgba(0,0,0,.4);
+}
+body.light-mode {
+  --bg:#f5f6fa; --surface:#ffffff; --surface2:#eef0f6; --border:#dde1ef;
+  --text:#1a1d27; --text-muted:#6b7280; --shadow:0 2px 12px rgba(0,0,0,.08);
+}
+body.light-mode .loading-overlay{ background:rgba(245,246,250,.88); }
+body.light-mode .remove-photo{ background:rgba(0,0,0,.5); }
 
-  .screen{display:none;min-height:100vh;flex-direction:column}
-  .screen.active{display:flex}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;-webkit-font-smoothing:antialiased;transition:background .25s,color .25s}
 
-  #authScreen{background:var(--bg);align-items:center;justify-content:center;padding:24px}
-  .auth-box{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 32px;animation:fadeUp .4s ease}
-  .logo{display:flex;align-items:center;gap:10px;margin-bottom:32px}
-  .logo-icon{width:40px;height:40px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px}
-  .logo-text{font-family:var(--mono);font-size:18px;font-weight:600;letter-spacing:-.5px}
-  .logo-text span{color:var(--accent)}
-  h2{font-size:22px;font-weight:600;margin-bottom:6px}
-  .subtitle{color:var(--text-muted);font-size:14px;margin-bottom:28px}
-  label{display:block;font-size:12px;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;margin-top:16px}
-  input[type="email"],input[type="password"],input[type="text"],input[type="number"],input[type="date"],textarea,select{
-    width:100%;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
-    color:var(--text);font-family:var(--sans);font-size:15px;transition:border-color .2s;-webkit-appearance:none}
-  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
-  textarea{resize:vertical;min-height:90px}
-  select option{background:var(--surface2)}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border-radius:var(--radius);font-family:var(--sans);font-size:15px;font-weight:500;cursor:pointer;border:none;transition:all .18s;-webkit-tap-highlight-color:transparent}
-  .btn-primary{background:var(--accent);color:#111;width:100%;margin-top:24px}
-  .btn-primary:hover{background:#f5c96a}
-  .btn-primary:active{transform:scale(.98)}
-  .btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
-  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
-  .btn-danger{background:var(--danger);color:#fff}
-  .btn-sm{padding:8px 14px;font-size:13px}
-  .auth-toggle{text-align:center;margin-top:20px;font-size:14px;color:var(--text-muted)}
-  .auth-toggle a{color:var(--accent);text-decoration:none;cursor:pointer}
-  .error-msg{background:rgba(255,85,85,.12);border:1px solid rgba(255,85,85,.3);color:#ff8080;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:14px;display:none}
-  .error-msg.show{display:block}
+/* ── SCREENS ── */
+.screen{display:none;min-height:100vh;flex-direction:column}
+.screen.active{display:flex}
 
-  #appScreen{background:var(--bg)}
-  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-  .topbar-title{font-family:var(--mono);font-size:15px;font-weight:600}
-  .topbar-title span{color:var(--accent)}
-  .user-chip{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);padding:6px 12px;border-radius:20px;font-size:12px;color:var(--text-muted)}
+/* ── AUTH ── */
+#authScreen{background:var(--bg);align-items:center;justify-content:center;padding:24px}
+.auth-box{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 32px;animation:fadeUp .4s ease;box-shadow:var(--shadow)}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:32px}
+.logo-icon{width:40px;height:40px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.logo-text{font-family:var(--mono);font-size:18px;font-weight:600;letter-spacing:-.5px}
+.logo-text span{color:var(--accent)}
+h2{font-size:22px;font-weight:600;margin-bottom:6px}
+.subtitle{color:var(--text-muted);font-size:14px;margin-bottom:28px}
+label{display:block;font-size:12px;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;margin-top:16px}
+input[type="email"],input[type="password"],input[type="text"],input[type="number"],input[type="date"],textarea,select{
+  width:100%;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  color:var(--text);font-family:var(--sans);font-size:15px;transition:border-color .2s,background .25s,color .25s;-webkit-appearance:none}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+textarea{resize:vertical;min-height:90px}
+select option{background:var(--surface2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border-radius:var(--radius);font-family:var(--sans);font-size:15px;font-weight:500;cursor:pointer;border:none;transition:all .18s;-webkit-tap-highlight-color:transparent}
+.btn-primary{background:var(--accent);color:#111;width:100%;margin-top:24px}
+.btn-primary:hover{background:#f5c96a}
+.btn-primary:active{transform:scale(.98)}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-success{background:var(--success);color:#111}
+.btn-sm{padding:8px 14px;font-size:13px}
+.auth-toggle{text-align:center;margin-top:20px;font-size:14px;color:var(--text-muted)}
+.auth-toggle a{color:var(--accent);text-decoration:none;cursor:pointer}
+.error-msg{background:rgba(255,85,85,.12);border:1px solid rgba(255,85,85,.3);color:#ff8080;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:14px;display:none}
+.error-msg.show{display:block}
 
-  .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
-  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 8px 10px;cursor:pointer;gap:4px;color:var(--text-muted);font-size:11px;font-family:var(--mono);transition:color .2s;-webkit-tap-highlight-color:transparent}
-  .nav-item svg{width:22px;height:22px}
-  .nav-item.active{color:var(--accent)}
-  .nav-dot{width:4px;height:4px;border-radius:50%;background:var(--accent);display:none}
-  .nav-item.active .nav-dot{display:block}
+/* ── APP SHELL ── */
+#appScreen{background:var(--bg)}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.topbar-title{font-family:var(--mono);font-size:15px;font-weight:600}
+.topbar-title span{color:var(--accent)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.user-chip{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);padding:6px 10px;border-radius:20px;font-size:12px;color:var(--text-muted)}
 
-  .page{display:none;padding:16px;padding-bottom:100px}
-  .page.active{display:block;animation:fadeUp .25s ease}
+/* ── THEME TOGGLE ── */
+.theme-toggle{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 10px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);font-family:var(--mono);transition:all .2s;white-space:nowrap}
+.theme-toggle:hover{border-color:var(--accent);color:var(--accent)}
 
-  .stats-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
-  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
-  .stat-val{font-family:var(--mono);font-size:28px;font-weight:600;color:var(--accent)}
-  .stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
-  .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:20px}
-  .section-head h3{font-size:13px;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em}
-  .report-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;cursor:pointer;transition:border-color .2s;animation:fadeUp .2s ease}
-  .report-card:hover,.report-card:active{border-color:var(--accent)}
-  .report-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
-  .report-card-title{font-weight:600;font-size:15px}
-  .report-card-sub{font-size:13px;color:var(--text-muted)}
-  .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-family:var(--mono);font-weight:600;text-transform:uppercase}
-  .badge-pending{background:rgba(244,185,66,.15);color:var(--accent)}
-  .badge-complete{background:rgba(80,250,123,.12);color:var(--success)}
-  .badge-draft{background:rgba(123,130,160,.15);color:var(--text-muted)}
+/* ── BOTTOM NAV ── */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 8px;cursor:pointer;gap:3px;color:var(--text-muted);font-size:10px;font-family:var(--mono);transition:color .2s;-webkit-tap-highlight-color:transparent}
+.nav-item svg{width:20px;height:20px}
+.nav-item.active{color:var(--accent)}
+.nav-dot{width:4px;height:4px;border-radius:50%;background:var(--accent);display:none}
+.nav-item.active .nav-dot{display:block}
 
-  .form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
-  .form-card h3{font-size:13px;font-family:var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+/* ── PAGES ── */
+.page{display:none;padding:16px;padding-bottom:90px}
+.page.active{display:block;animation:fadeUp .25s ease}
 
-  .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
-  .photo-thumb{aspect-ratio:1;border-radius:8px;overflow:hidden;position:relative;background:var(--surface2);border:1px solid var(--border)}
-  .photo-thumb img{width:100%;height:100%;object-fit:cover}
-  .remove-photo{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.7);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
-  .photo-add-btn{aspect-ratio:1;border-radius:8px;background:var(--surface2);border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;color:var(--text-muted);font-size:12px;transition:border-color .2s;-webkit-tap-highlight-color:transparent;text-align:center;padding:8px}
-  .photo-add-btn:hover,.photo-add-btn:active{border-color:var(--accent);color:var(--accent)}
-  .photo-add-btn svg{width:28px;height:28px}
+/* ── DASHBOARD ── */
+.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.stat-val{font-family:var(--mono);font-size:28px;font-weight:600;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:20px}
+.section-head h3{font-size:13px;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em}
+.report-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;cursor:pointer;transition:border-color .2s,box-shadow .2s;animation:fadeUp .2s ease;box-shadow:var(--shadow)}
+.report-card:hover,.report-card:active{border-color:var(--accent);box-shadow:0 4px 16px rgba(244,185,66,.1)}
+.report-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+.report-card-title{font-weight:600;font-size:15px}
+.report-card-sub{font-size:13px;color:var(--text-muted)}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-family:var(--mono);font-weight:600;text-transform:uppercase;white-space:nowrap}
+.badge-pending{background:rgba(244,185,66,.15);color:var(--accent)}
+.badge-complete{background:rgba(80,250,123,.12);color:var(--success)}
+.badge-draft{background:rgba(123,130,160,.15);color:var(--text-muted)}
 
-  .question-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
-  .question-item-info{flex:1}
-  .question-item-label{font-size:14px;font-weight:500}
-  .question-item-type{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-top:2px}
-  .drag-handle{color:var(--text-muted);padding:4px}
-  .add-question-form{background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);padding:20px;margin-top:16px;animation:fadeUp .2s ease}
-  .type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
-  .type-option{padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:13px;text-align:center;transition:all .15s;-webkit-tap-highlight-color:transparent}
-  .type-option:hover,.type-option.selected{border-color:var(--accent);color:var(--accent);background:rgba(244,185,66,.08)}
+/* ── FORM CARDS ── */
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.form-card h3{font-size:13px;font-family:var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
 
-  .detail-overlay{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;flex-direction:column}
-  .detail-overlay.open{display:flex;animation:slideUp .3s ease}
-  .detail-topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0}
-  .detail-content{flex:1;overflow-y:auto;padding:20px 16px 40px}
-  .detail-field{margin-bottom:20px}
-  .detail-field-label{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-  .detail-field-value{font-size:15px;line-height:1.5}
-  .detail-photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
-  .detail-photo{aspect-ratio:1;border-radius:8px;overflow:hidden}
-  .detail-photo img{width:100%;height:100%;object-fit:cover}
+/* ── PHOTOS ── */
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.photo-thumb{aspect-ratio:1;border-radius:8px;overflow:hidden;position:relative;background:var(--surface2);border:1px solid var(--border)}
+.photo-thumb img{width:100%;height:100%;object-fit:cover}
+.remove-photo{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.7);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
+.photo-add-btn{aspect-ratio:1;border-radius:8px;background:var(--surface2);border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;color:var(--text-muted);font-size:12px;transition:border-color .2s;-webkit-tap-highlight-color:transparent;text-align:center;padding:8px}
+.photo-add-btn:hover,.photo-add-btn:active{border-color:var(--accent);color:var(--accent)}
+.photo-add-btn svg{width:28px;height:28px}
 
-  .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border);padding:12px 20px;border-radius:24px;font-size:13px;font-family:var(--mono);opacity:0;pointer-events:none;transition:all .3s;white-space:nowrap;z-index:999}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  .toast.success{border-color:var(--success);color:var(--success)}
-  .toast.error{border-color:var(--danger);color:#ff8080}
+/* ── CONFIGURE ── */
+.question-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.question-item-info{flex:1}
+.question-item-label{font-size:14px;font-weight:500}
+.question-item-type{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-top:2px}
+.drag-handle{color:var(--text-muted);padding:4px}
+.add-question-form{background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);padding:20px;margin-top:16px;animation:fadeUp .2s ease}
+.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.type-option{padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:13px;text-align:center;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.type-option:hover,.type-option.selected{border-color:var(--accent);color:var(--accent);background:rgba(244,185,66,.08)}
 
-  .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:40px auto}
-  .loading-overlay{position:fixed;inset:0;background:rgba(15,17,23,.85);align-items:center;justify-content:center;z-index:500;display:none}
-  .loading-overlay.show{display:flex}
+/* ── REPORTS PAGE (filter + list) ── */
+.filter-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:var(--shadow)}
+.filter-card h3{font-size:13px;font-family:var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
+.filter-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.filter-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.filter-actions .btn{flex:1;min-width:120px;margin-top:0}
+.report-count{font-size:12px;font-family:var(--mono);color:var(--text-muted);margin-bottom:10px}
 
-  .config-notice{background:rgba(244,185,66,.1);border:1px solid rgba(244,185,66,.3);border-radius:8px;padding:14px 16px;font-size:13px;color:var(--accent);margin-bottom:20px}
-  .config-notice code{background:rgba(244,185,66,.2);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12px}
-  .mt16{margin-top:16px} .flex-row{display:flex;gap:8px} .flex-1{flex:1}
-  .text-muted{color:var(--text-muted);font-size:13px}
-  .divider{border:none;border-top:1px solid var(--border);margin:16px 0}
-  .empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
-  .empty-state svg{width:48px;height:48px;margin-bottom:12px;opacity:.4}
-  .empty-state p{font-size:14px}
-  input[type="file"]{display:none}
+/* ── DETAIL OVERLAY ── */
+.detail-overlay{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;flex-direction:column}
+.detail-overlay.open{display:flex;animation:slideUp .3s ease}
+.detail-topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:8px;position:sticky;top:0;flex-wrap:wrap}
+.detail-topbar-actions{display:flex;gap:8px;margin-left:auto}
+.detail-content{flex:1;overflow-y:auto;padding:20px 16px 40px}
+.detail-field{margin-bottom:20px}
+.detail-field-label{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.detail-field-value{font-size:15px;line-height:1.5}
+.detail-photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.detail-photo{aspect-ratio:1;border-radius:8px;overflow:hidden}
+.detail-photo img{width:100%;height:100%;object-fit:cover}
 
-  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-  @keyframes spin{to{transform:rotate(360deg)}}
+/* ── TOAST ── */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border);padding:12px 20px;border-radius:24px;font-size:13px;font-family:var(--mono);opacity:0;pointer-events:none;transition:all .3s;white-space:nowrap;z-index:999;box-shadow:var(--shadow)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:var(--success);color:var(--success)}
+.toast.error{border-color:var(--danger);color:#ff8080}
+
+/* ── LOADING ── */
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:40px auto}
+.loading-overlay{position:fixed;inset:0;background:rgba(15,17,23,.85);align-items:center;justify-content:center;z-index:500;display:none}
+.loading-overlay.show{display:flex}
+
+/* ── MISC ── */
+.config-notice{background:rgba(244,185,66,.1);border:1px solid rgba(244,185,66,.3);border-radius:8px;padding:14px 16px;font-size:13px;color:var(--accent);margin-bottom:20px}
+.config-notice code{background:rgba(244,185,66,.2);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12px}
+.mt16{margin-top:16px} .flex-row{display:flex;gap:8px;flex-wrap:wrap} .flex-1{flex:1}
+.text-muted{color:var(--text-muted);font-size:13px}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.empty-state svg{width:48px;height:48px;margin-bottom:12px;opacity:.4}
+.empty-state p{font-size:14px}
+input[type="file"]{display:none}
+
+/* ── PRINT / PDF STYLES ── */
+@media print {
+  .bottom-nav,.topbar,.detail-topbar,.toast,.loading-overlay{display:none!important}
+  .detail-overlay{position:static!important;animation:none!important}
+  body{background:#fff!important;color:#000!important}
+  .detail-content{padding:0!important}
+  .detail-field-label{color:#666!important}
+  img{max-width:100%;page-break-inside:avoid}
+}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -170,17 +218,24 @@
 <div id="appScreen" class="screen">
   <div class="topbar">
     <div class="topbar-title">Field<span>Ops</span></div>
-    <div class="user-chip">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-      <span id="userEmailChip"></span>
-      <span id="signOutBtn" style="cursor:pointer;color:var(--danger);padding-left:4px">✕</span>
+    <div class="topbar-right">
+      <!-- Theme Toggle -->
+      <button class="theme-toggle" id="themeToggleBtn">
+        <span id="themeIcon">☀️</span>
+        <span id="themeLabel">Light</span>
+      </button>
+      <div class="user-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span id="userEmailChip"></span>
+        <span id="signOutBtn" style="cursor:pointer;color:var(--danger);padding-left:4px">✕</span>
+      </div>
     </div>
   </div>
 
-  <!-- Dashboard -->
+  <!-- ── Dashboard ── -->
   <div id="pageDashboard" class="page active">
     <div id="configNotice" class="config-notice" style="display:none">
-      ⚠️ Firebase not configured. Replace the <code>firebaseConfig</code> values in the &lt;script&gt; at the bottom of this file. No Storage needed — photos save directly to Firestore.
+      ⚠️ Firebase not configured. Replace the <code>firebaseConfig</code> values in the &lt;script&gt;.
     </div>
     <div class="stats-row">
       <div class="stat-card"><div class="stat-val" id="statTotal">—</div><div class="stat-label">Total Reports</div></div>
@@ -193,7 +248,7 @@
     <div id="reportsList"><div class="spinner"></div></div>
   </div>
 
-  <!-- New Report -->
+  <!-- ── New Report ── -->
   <div id="pageNewReport" class="page">
     <div class="form-card">
       <h3>📋 Report Info</h3>
@@ -227,7 +282,50 @@
     </div>
   </div>
 
-  <!-- Configure -->
+  <!-- ── Reports (Filter + Export) ── -->
+  <div id="pageReports" class="page">
+    <div class="filter-card">
+      <h3>🔍 Filter Reports</h3>
+      <div class="filter-row">
+        <div>
+          <label>From Date</label>
+          <input type="date" id="filterDateFrom"/>
+        </div>
+        <div>
+          <label>To Date</label>
+          <input type="date" id="filterDateTo"/>
+        </div>
+      </div>
+      <div>
+        <label>User / Email</label>
+        <input type="text" id="filterUser" placeholder="e.g. john@company.com"/>
+      </div>
+      <div style="margin-top:10px">
+        <label>Status</label>
+        <select id="filterStatus">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="complete">Complete</option>
+          <option value="draft">Draft</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-ghost btn-sm" id="filterClearBtn">✕ Clear</button>
+        <button class="btn btn-primary btn-sm" id="filterApplyBtn" style="margin-top:0">Apply Filter</button>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h3 id="filteredCount">All Reports</h3>
+      <button class="btn btn-ghost btn-sm" id="exportCsvBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button>
+    </div>
+    <div id="filteredReportsList"></div>
+  </div>
+
+  <!-- ── Configure ── -->
   <div id="pageAdmin" class="page">
     <div class="form-card">
       <h3>⚙️ Report Questions</h3>
@@ -264,27 +362,38 @@
     </div>
   </div>
 
+  <!-- ── Bottom Nav (5 items) ── -->
   <nav class="bottom-nav">
     <div class="nav-item active" id="nav-Dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      Dashboard<div class="nav-dot"></div>
+      Home<div class="nav-dot"></div>
     </div>
     <div class="nav-item" id="nav-NewReport">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-      New Report<div class="nav-dot"></div>
+      New<div class="nav-dot"></div>
+    </div>
+    <div class="nav-item" id="nav-Reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Reports<div class="nav-dot"></div>
     </div>
     <div class="nav-item" id="nav-Admin">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-      Configure<div class="nav-dot"></div>
+      Config<div class="nav-dot"></div>
     </div>
   </nav>
 </div>
 
-<!-- Detail Overlay -->
+<!-- ═══ DETAIL OVERLAY ═══ -->
 <div id="detailOverlay" class="detail-overlay">
   <div class="detail-topbar">
     <button class="btn btn-ghost btn-sm" id="closeDetailBtn">← Back</button>
-    <span id="detailTitle" style="font-weight:600;font-size:15px;flex:1;margin-left:8px"></span>
+    <span id="detailTitle" style="font-weight:600;font-size:15px;margin-left:4px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <div class="detail-topbar-actions">
+      <button class="btn btn-ghost btn-sm" id="exportPdfBtn" title="Export PDF">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        PDF
+      </button>
+    </div>
   </div>
   <div class="detail-content" id="detailContent"></div>
 </div>
@@ -292,9 +401,9 @@
 <div class="toast" id="toast"></div>
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
 
-<!-- ═══════════════════════════════════════════════════════
-     SINGLE MODULE SCRIPT — Firebase + all app logic here
-     ═══════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════
+     SINGLE MODULE SCRIPT
+     ═══════════════════════════════════════════ -->
 <script type="module">
 import { initializeApp }
   from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
@@ -306,7 +415,7 @@ import { getFirestore, collection, addDoc, getDocs,
   from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
 // =============================================
-// 🔥 PASTE YOUR FIREBASE CONFIG HERE
+// 🔥 FIREBASE CONFIG
 // =============================================
 const firebaseConfig = {
   apiKey:            "AIzaSyDujE6P2_sdm2-R0lUceeZcmuoDQX8xFNs",
@@ -321,27 +430,27 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// ── State ────────────────────────────────────
+// ── State ──────────────────────────────────
 let currentUser    = null;
 let questions      = [];
-let capturedPhotos = [];  // [{base64}]
-let questionPhotos = {};  // {qid:[{base64}]}
+let capturedPhotos = [];
+let questionPhotos = {};
 let reports        = [];
+let filteredReports= [];
 let isSignUp       = false;
 let selectedType   = 'text';
+let currentDetailId= null;
+let isDark         = true; // default dark
 
-// ── Tiny helpers ─────────────────────────────
+// ── Helpers ────────────────────────────────
 const $ = id => document.getElementById(id);
-const esc = s => String(s)
-  .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-function showToast(msg, type='') {
-  const t=$('toast'); t.textContent=msg;
-  t.className='toast show '+type;
+function showToast(msg,type=''){
+  const t=$('toast');t.textContent=msg;t.className='toast show '+type;
   setTimeout(()=>t.className='toast',2800);
 }
-function setLoading(v){ $('loadingOverlay').className='loading-overlay'+(v?' show':''); }
+function setLoading(v){$('loadingOverlay').className='loading-overlay'+(v?' show':'');}
 function showScreen(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   $(name+'Screen').classList.add('active');
@@ -352,9 +461,24 @@ function switchPage(name){
   $('page'+name).classList.add('active');
   $('nav-'+name).classList.add('active');
   if(name==='NewReport') renderDynamicFields();
+  if(name==='Reports') renderFilteredReports();
 }
 
-// ── Auth ─────────────────────────────────────
+// ── Theme Toggle ───────────────────────────
+function applyTheme(dark){
+  isDark=dark;
+  document.body.classList.toggle('light-mode',!dark);
+  $('themeIcon').textContent=dark?'☀️':'🌙';
+  $('themeLabel').textContent=dark?'Light':'Dark';
+  localStorage.setItem('fieldops_theme', dark?'dark':'light');
+}
+// Load saved theme
+const savedTheme=localStorage.getItem('fieldops_theme');
+applyTheme(savedTheme!=='light'); // default dark
+
+$('themeToggleBtn').addEventListener('click',()=>applyTheme(!isDark));
+
+// ── Auth ────────────────────────────────────
 function toggleAuthMode(){
   isSignUp=!isSignUp;
   $('authTitle').textContent      = isSignUp?'Create account':'Welcome back';
@@ -370,7 +494,7 @@ async function handleAuth(){
   const pass=$('authPassword').value;
   const err=$('authError');
   err.classList.remove('show');
-  if(!email||!pass){ err.textContent='Please enter email and password.'; err.classList.add('show'); return; }
+  if(!email||!pass){err.textContent='Please enter email and password.';err.classList.add('show');return;}
   setLoading(true);
   try{
     if(isSignUp) await createUserWithEmailAndPassword(auth,email,pass);
@@ -390,8 +514,7 @@ async function handleAuth(){
   setLoading(false);
 }
 
-// ── Auth state listener ───────────────────────
-onAuthStateChanged(auth, user=>{
+onAuthStateChanged(auth,user=>{
   if(user){
     currentUser=user;
     $('userEmailChip').textContent=user.email.split('@')[0];
@@ -405,7 +528,7 @@ onAuthStateChanged(auth, user=>{
   }
 });
 
-// ── Questions ────────────────────────────────
+// ── Questions ───────────────────────────────
 async function loadQuestions(){
   try{
     const snap=await getDocs(query(collection(db,'questions'),orderBy('order')));
@@ -441,7 +564,7 @@ function renderQuestionsList(){
 }
 
 async function deleteQuestion(id,idx){
-  questions.splice(idx,1); renderQuestionsList();
+  questions.splice(idx,1);renderQuestionsList();
   try{await deleteDoc(doc(db,'questions',id));}catch{}
   showToast('Question removed','success');
 }
@@ -475,7 +598,7 @@ async function saveQuestion(){
   setLoading(false);
 }
 
-// ── Dynamic report form ───────────────────────
+// ── Dynamic Form ────────────────────────────
 function renderDynamicFields(){
   const el=$('dynamicFields');
   $('reportDate').value=new Date().toISOString().split('T')[0];
@@ -495,14 +618,11 @@ function renderDynamicFields(){
       }
       case 'photo':
         questionPhotos[q.id]=[];
-        input=`<div class="photo-grid" id="qgrid_${q.id}"></div><input type="file" id="qinput_${q.id}" accept="image/*" capture="environment" multiple/>`;
-        break;
+        input=`<div class="photo-grid" id="qgrid_${q.id}"></div><input type="file" id="qinput_${q.id}" accept="image/*" capture="environment" multiple/>`;break;
       default: input=`<input type="text" id="field_${q.id}" placeholder="Enter ${esc(q.label).toLowerCase()}..."/>`;
     }
     return `<div style="margin-bottom:18px"><label>${esc(q.label)}${req}</label>${input}</div>`;
   }).join('');
-
-  // attach file-input listeners for photo questions
   Object.keys(questionPhotos).forEach(qid=>{
     renderQPhotoGrid(qid);
     const inp=$('qinput_'+qid);
@@ -511,11 +631,10 @@ function renderDynamicFields(){
 }
 
 function renderQPhotoGrid(qid){
-  const grid=$('qgrid_'+qid); if(!grid) return;
+  const grid=$('qgrid_'+qid);if(!grid)return;
   const photos=questionPhotos[qid]||[];
   grid.innerHTML=photos.map((p,i)=>`
-    <div class="photo-thumb">
-      <img src="${p.base64}"/>
+    <div class="photo-thumb"><img src="${p.base64}"/>
       <button class="remove-photo" data-qid="${qid}" data-idx="${i}">✕</button>
     </div>`).join('')+
     `<div class="photo-add-btn" data-addqid="${qid}">
@@ -532,11 +651,10 @@ function handleQPhoto(e,qid){
   e.target.value='';
 }
 
-// ── General photos ────────────────────────────
+// ── General Photos ─────────────────────────
 function renderPhotoGrid(){
   $('photoGrid').innerHTML=capturedPhotos.map((p,i)=>`
-    <div class="photo-thumb">
-      <img src="${p.base64}"/>
+    <div class="photo-thumb"><img src="${p.base64}"/>
       <button class="remove-photo" data-genidx="${i}">✕</button>
     </div>`).join('')+
     `<div class="photo-add-btn" id="generalAddBtn">
@@ -544,7 +662,7 @@ function renderPhotoGrid(){
       ${capturedPhotos.length?'Add more':'Camera'}</div>`;
 }
 
-// ── Image compression ─────────────────────────
+// ── Image Compression ──────────────────────
 function compressImage(base64,maxW=1024,qs=[0.7,0.5,0.35]){
   return new Promise(res=>{
     const img=new Image();
@@ -561,7 +679,7 @@ function compressImage(base64,maxW=1024,qs=[0.7,0.5,0.35]){
   });
 }
 
-// ── Submit report ─────────────────────────────
+// ── Submit Report ──────────────────────────
 async function submitReport(){
   const title=$('reportTitle').value.trim();
   const date=$('reportDate').value;
@@ -569,7 +687,7 @@ async function submitReport(){
   if(!title){showToast('Please enter a report title','error');return;}
   if(!date){showToast('Please select a date','error');return;}
 
-  const fieldData={}; let valid=true;
+  const fieldData={};let valid=true;
   questions.forEach(q=>{
     if(q.type==='photo'){
       const photos=questionPhotos[q.id]||[];
@@ -581,13 +699,12 @@ async function submitReport(){
     if(q.required&&!val&&val!==false){showToast(`"${q.label}" is required`,'error');valid=false;}
     fieldData[q.id]={label:q.label,type:q.type,value:val};
   });
-  if(!valid) return;
+  if(!valid)return;
 
-  setLoading(true); showToast('Compressing photos…','');
+  setLoading(true);showToast('Compressing photos…','');
 
   const compGen=[];
   for(const p of capturedPhotos) compGen.push(await compressImage(p.base64));
-
   const compQ={};
   for(const [qid,photos] of Object.entries(questionPhotos)){
     compQ[qid]=[];
@@ -619,12 +736,13 @@ function clearForm(){
   renderPhotoGrid();renderDynamicFields();
 }
 
-// ── Load & render reports ─────────────────────
+// ── Load Reports ────────────────────────────
 async function loadReports(){
   const el=$('reportsList');el.innerHTML='<div class="spinner"></div>';
   try{
     const snap=await getDocs(query(collection(db,'reports'),orderBy('createdAtMs','desc')));
     reports=snap.docs.map(d=>({id:d.id,...d.data()}));
+    filteredReports=[...reports];
     renderReports();
   }catch{el.innerHTML='<p class="text-muted" style="text-align:center;padding:30px">Could not load reports. Check Firebase config.</p>';}
 }
@@ -637,10 +755,11 @@ function renderReports(){
   if(!reports.length){
     el.innerHTML=`<div class="empty-state">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      <p>No reports yet.<br/>Tap New Report to get started.</p></div>`;
+      <p>No reports yet.<br/>Tap New to get started.</p></div>`;
     return;
   }
-  el.innerHTML=reports.map(r=>`
+  // Show latest 10 on dashboard
+  el.innerHTML=reports.slice(0,10).map(r=>`
     <div class="report-card" data-rid="${r.id}">
       <div class="report-card-top">
         <div class="report-card-title">${esc(r.title)}</div>
@@ -650,9 +769,115 @@ function renderReports(){
     </div>`).join('');
 }
 
-// ── Detail view ───────────────────────────────
+// ── Filter & Reports Page ──────────────────
+function applyFilter(){
+  const from=$('filterDateFrom').value;
+  const to=$('filterDateTo').value;
+  const user=$('filterUser').value.trim().toLowerCase();
+  const status=$('filterStatus').value;
+
+  filteredReports=reports.filter(r=>{
+    if(from && r.date < from) return false;
+    if(to   && r.date > to)   return false;
+    if(user && !(r.userEmail||'').toLowerCase().includes(user)) return false;
+    if(status && r.status!==status) return false;
+    return true;
+  });
+  renderFilteredReports();
+}
+
+function clearFilter(){
+  $('filterDateFrom').value='';
+  $('filterDateTo').value='';
+  $('filterUser').value='';
+  $('filterStatus').value='';
+  filteredReports=[...reports];
+  renderFilteredReports();
+}
+
+function renderFilteredReports(){
+  filteredReports=[...reports]; // reset then re-apply if filters active
+  const from=$('filterDateFrom').value;
+  const to=$('filterDateTo').value;
+  const user=$('filterUser').value.trim().toLowerCase();
+  const status=$('filterStatus').value;
+  if(from||to||user||status){
+    filteredReports=reports.filter(r=>{
+      if(from && r.date<from) return false;
+      if(to   && r.date>to)   return false;
+      if(user && !(r.userEmail||'').toLowerCase().includes(user)) return false;
+      if(status && r.status!==status) return false;
+      return true;
+    });
+  }
+
+  $('filteredCount').textContent=`${filteredReports.length} Report${filteredReports.length!==1?'s':''}`;
+  const el=$('filteredReportsList');
+  if(!filteredReports.length){
+    el.innerHTML=`<div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <p>No reports match your filters.</p></div>`;
+    return;
+  }
+  el.innerHTML=filteredReports.map(r=>`
+    <div class="report-card" data-rid="${r.id}">
+      <div class="report-card-top">
+        <div class="report-card-title">${esc(r.title)}</div>
+        <span class="badge badge-${r.status}">${r.status}</span>
+      </div>
+      <div class="report-card-sub">📅 ${r.date} · 👤 ${esc(r.userEmail||'')}${r.totalPhotoCount?' · 📸 '+r.totalPhotoCount:''}</div>
+    </div>`).join('');
+}
+
+// ── CSV Export ─────────────────────────────
+function exportCsv(){
+  if(!filteredReports.length){showToast('No reports to export','error');return;}
+
+  // Collect all unique field labels from all reports
+  const fieldLabels=new Set();
+  filteredReports.forEach(r=>Object.values(r.fields||{}).forEach(f=>fieldLabels.add(f.label)));
+  const fieldLabelArr=[...fieldLabels];
+
+  const headers=['Title','Date','Status','Submitted By','Photos',...fieldLabelArr];
+  const rows=filteredReports.map(r=>{
+    const base=[
+      csvCell(r.title),
+      csvCell(r.date),
+      csvCell(r.status),
+      csvCell(r.userEmail||''),
+      csvCell(r.totalPhotoCount||0),
+    ];
+    const fieldVals=fieldLabelArr.map(lbl=>{
+      const f=Object.values(r.fields||{}).find(x=>x.label===lbl);
+      if(!f) return '""';
+      if(f.type==='photo') return csvCell(`${f.photoCount} photo(s)`);
+      if(f.type==='checkbox') return csvCell(f.value?'Yes':'No');
+      return csvCell(f.value||'');
+    });
+    return [...base,...fieldVals].join(',');
+  });
+
+  const csv=[headers.map(csvCell).join(','),...rows].join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`fieldops_reports_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV exported ✓','success');
+}
+
+function csvCell(v){
+  const s=String(v).replace(/"/g,'""');
+  return /[,"\n]/.test(s)?`"${s}"`:s;
+}
+
+// ── Detail View ─────────────────────────────
 async function openDetail(id){
-  const r=reports.find(x=>x.id===id);if(!r)return;
+  const r=reports.find(x=>x.id===id)||filteredReports.find(x=>x.id===id);
+  if(!r)return;
+  currentDetailId=id;
   $('detailTitle').textContent=r.title;
   $('detailOverlay').classList.add('open');
   const fields=r.fields||{};
@@ -690,66 +915,202 @@ async function openDetail(id){
   }
 }
 
-// ── Wire up ALL event listeners ───────────────
+// ── PDF Export ──────────────────────────────
+async function exportPdf(){
+  const r=reports.find(x=>x.id===currentDetailId)||filteredReports.find(x=>x.id===currentDetailId);
+  if(!r){showToast('No report open','error');return;}
+
+  if(!window.jspdf){showToast('PDF library not loaded','error');return;}
+  const {jsPDF}=window.jspdf;
+
+  setLoading(true);
+  showToast('Generating PDF…','');
+
+  try{
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const pageW=210, margin=15, contentW=pageW-margin*2;
+    let y=margin;
+
+    // ── Header ──
+    pdf.setFillColor(244,185,66);
+    pdf.rect(0,0,pageW,18,'F');
+    pdf.setTextColor(17,17,17);
+    pdf.setFontSize(13);pdf.setFont('helvetica','bold');
+    pdf.text('FieldOps — Field Service Report',margin,12);
+
+    y=26;
+    // ── Title block ──
+    pdf.setFontSize(16);pdf.setFont('helvetica','bold');pdf.setTextColor(30,30,40);
+    pdf.text(r.title,margin,y);y+=8;
+
+    pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.setTextColor(100,100,120);
+    pdf.text(`Date: ${r.date}   |   Status: ${r.status.toUpperCase()}   |   By: ${r.userEmail||''}`,margin,y);
+    y+=6;
+    pdf.setDrawColor(220,220,235);pdf.setLineWidth(0.4);
+    pdf.line(margin,y,pageW-margin,y);y+=6;
+
+    // ── Fields ──
+    const fields=r.fields||{};
+    for(const [,f] of Object.entries(fields)){
+      if(f.type==='photo') continue; // photos added below
+      const label=f.label.toUpperCase();
+      let val='';
+      if(f.type==='checkbox') val=f.value?'Yes':'No';
+      else val=String(f.value||'—');
+
+      pdf.setFontSize(8);pdf.setFont('helvetica','bold');pdf.setTextColor(120,120,150);
+      pdf.text(label,margin,y);y+=5;
+
+      pdf.setFontSize(10);pdf.setFont('helvetica','normal');pdf.setTextColor(30,30,40);
+      const lines=pdf.splitTextToSize(val,contentW);
+      lines.forEach(line=>{
+        if(y>275){pdf.addPage();y=margin;}
+        pdf.text(line,margin,y);y+=5;
+      });
+      y+=3;
+      if(y>270){pdf.addPage();y=margin;}
+    }
+
+    // ── Photos ──
+    // Load all photo data from Firestore
+    let allPhotos=[];
+    try{
+      const snap=await getDocs(collection(db,'reports',r.id,'photos'));
+      allPhotos=snap.docs.map(d=>d.data());
+    }catch{}
+
+    if(allPhotos.length){
+      if(y>240){pdf.addPage();y=margin;}
+      pdf.setDrawColor(220,220,235);pdf.line(margin,y,pageW-margin,y);y+=6;
+      pdf.setFontSize(10);pdf.setFont('helvetica','bold');pdf.setTextColor(30,30,40);
+      pdf.text('PHOTOS',margin,y);y+=6;
+
+      // Group by question
+      const gen=allPhotos.filter(p=>p.group==='general'||!p.group).sort((a,b)=>a.index-b.index);
+      const byQ={};
+      allPhotos.filter(p=>p.group==='question').forEach(p=>{if(!byQ[p.questionId])byQ[p.questionId]=[];byQ[p.questionId].push(p);});
+
+      const addPhotoSection=async(photos,sectionLabel)=>{
+        if(!photos.length)return;
+        if(y>250){pdf.addPage();y=margin;}
+        pdf.setFontSize(8);pdf.setFont('helvetica','bold');pdf.setTextColor(120,120,150);
+        pdf.text(sectionLabel.toUpperCase(),margin,y);y+=5;
+
+        const imgW=55,imgH=42,gap=5;
+        let col=0;const startX=margin;
+        for(const p of photos){
+          if(col===3){col=0;y+=imgH+gap;}
+          if(y+imgH>280){pdf.addPage();y=margin;col=0;}
+          const x=startX+col*(imgW+gap);
+          try{
+            // Add image — jsPDF supports JPEG base64
+            const imgData=p.data.startsWith('data:')?p.data:'data:image/jpeg;base64,'+p.data;
+            pdf.addImage(imgData,'JPEG',x,y,imgW,imgH);
+          }catch(e){
+            // Draw placeholder if image fails
+            pdf.setDrawColor(200,200,210);pdf.rect(x,y,imgW,imgH);
+            pdf.setFontSize(7);pdf.setTextColor(150,150,160);
+            pdf.text('Photo',x+imgW/2,y+imgH/2,{align:'center'});
+          }
+          col++;
+        }
+        y+=imgH+gap+4;
+      };
+
+      if(gen.length) await addPhotoSection(gen,'General Photos');
+      for(const [qid,photos] of Object.entries(byQ)){
+        const f=r.fields[qid];
+        const lbl=f?f.label:'Question Photos';
+        await addPhotoSection(photos,lbl);
+      }
+    }
+
+    // ── Footer on all pages ──
+    const pageCount=pdf.getNumberOfPages();
+    for(let i=1;i<=pageCount;i++){
+      pdf.setPage(i);
+      pdf.setFontSize(8);pdf.setFont('helvetica','normal');pdf.setTextColor(160,160,180);
+      pdf.text(`FieldOps Report  |  Generated ${new Date().toLocaleDateString()}  |  Page ${i} of ${pageCount}`,pageW/2,292,{align:'center'});
+    }
+
+    const filename=`fieldops_${r.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()}_${r.date}.pdf`;
+    pdf.save(filename);
+    showToast('PDF saved ✓','success');
+  }catch(e){
+    console.error('PDF error',e);
+    showToast('PDF error: '+e.message,'error');
+  }
+  setLoading(false);
+}
+
+// ── Event Listeners ─────────────────────────
 // Auth
-$('authBtn').addEventListener('click', handleAuth);
-$('authToggleLink').addEventListener('click', toggleAuthMode);
-$('authEmail').addEventListener('keydown', e=>{if(e.key==='Enter')$('authPassword').focus();});
-$('authPassword').addEventListener('keydown', e=>{if(e.key==='Enter')handleAuth();});
+$('authBtn').addEventListener('click',handleAuth);
+$('authToggleLink').addEventListener('click',toggleAuthMode);
+$('authEmail').addEventListener('keydown',e=>{if(e.key==='Enter')$('authPassword').focus();});
+$('authPassword').addEventListener('keydown',e=>{if(e.key==='Enter')handleAuth();});
 
 // Sign out
-$('signOutBtn').addEventListener('click', ()=>signOut(auth));
+$('signOutBtn').addEventListener('click',()=>signOut(auth));
 
 // Nav
-$('nav-Dashboard').addEventListener('click', ()=>switchPage('Dashboard'));
-$('nav-NewReport').addEventListener('click', ()=>switchPage('NewReport'));
-$('nav-Admin').addEventListener('click', ()=>switchPage('Admin'));
+$('nav-Dashboard').addEventListener('click',()=>switchPage('Dashboard'));
+$('nav-NewReport').addEventListener('click',()=>switchPage('NewReport'));
+$('nav-Reports').addEventListener('click',()=>switchPage('Reports'));
+$('nav-Admin').addEventListener('click',()=>switchPage('Admin'));
 
 // Dashboard
-$('refreshBtn').addEventListener('click', loadReports);
-$('reportsList').addEventListener('click', e=>{const c=e.target.closest('[data-rid]');if(c)openDetail(c.dataset.rid);});
+$('refreshBtn').addEventListener('click',loadReports);
+$('reportsList').addEventListener('click',e=>{const c=e.target.closest('[data-rid]');if(c)openDetail(c.dataset.rid);});
+
+// Reports page
+$('filterApplyBtn').addEventListener('click',renderFilteredReports);
+$('filterClearBtn').addEventListener('click',clearFilter);
+$('exportCsvBtn').addEventListener('click',exportCsv);
+$('filteredReportsList').addEventListener('click',e=>{const c=e.target.closest('[data-rid]');if(c)openDetail(c.dataset.rid);});
 
 // Form
-$('submitBtn').addEventListener('click', submitReport);
-$('clearBtn').addEventListener('click', clearForm);
+$('submitBtn').addEventListener('click',submitReport);
+$('clearBtn').addEventListener('click',clearForm);
 
 // General camera
-$('cameraInput').addEventListener('change', e=>{
+$('cameraInput').addEventListener('change',e=>{
   Array.from(e.target.files).forEach(f=>{const r=new FileReader();r.onload=ev=>{capturedPhotos.push({base64:ev.target.result});renderPhotoGrid();};r.readAsDataURL(f);});
   e.target.value='';
 });
-$('photoGrid').addEventListener('click', e=>{
+$('photoGrid').addEventListener('click',e=>{
   if(e.target.closest('#generalAddBtn')){$('cameraInput').click();return;}
   const rb=e.target.closest('[data-genidx]');
   if(rb){capturedPhotos.splice(+rb.dataset.genidx,1);renderPhotoGrid();}
 });
 
-// Question photo grids (delegated on dynamicFields container)
-$('dynamicFields').addEventListener('click', e=>{
+// Question photo grids
+$('dynamicFields').addEventListener('click',e=>{
   const addBtn=e.target.closest('[data-addqid]');
   if(addBtn){$('qinput_'+addBtn.dataset.addqid)?.click();return;}
   const rm=e.target.closest('.remove-photo[data-qid]');
   if(rm){questionPhotos[rm.dataset.qid].splice(+rm.dataset.idx,1);renderQPhotoGrid(rm.dataset.qid);}
 });
 
-// Questions config
-$('questionsList').addEventListener('click', e=>{
+// Configure
+$('questionsList').addEventListener('click',e=>{
   const btn=e.target.closest('[data-delidx]');
   if(btn) deleteQuestion(btn.dataset.delid,+btn.dataset.delidx);
 });
-$('typeGrid').addEventListener('click', e=>{
+$('typeGrid').addEventListener('click',e=>{
   const opt=e.target.closest('.type-option');if(!opt)return;
   document.querySelectorAll('.type-option').forEach(o=>o.classList.remove('selected'));
   opt.classList.add('selected');
   selectedType=opt.dataset.type;
   $('selectOptionsArea').style.display=selectedType==='select'?'block':'none';
 });
-$('addQBtn').addEventListener('click', ()=>toggleAddQuestion(true));
-$('cancelQBtn').addEventListener('click', ()=>toggleAddQuestion(false));
-$('saveQBtn').addEventListener('click', saveQuestion);
+$('addQBtn').addEventListener('click',()=>toggleAddQuestion(true));
+$('cancelQBtn').addEventListener('click',()=>toggleAddQuestion(false));
+$('saveQBtn').addEventListener('click',saveQuestion);
 
 // Detail
-$('closeDetailBtn').addEventListener('click', ()=>$('detailOverlay').classList.remove('open'));
+$('closeDetailBtn').addEventListener('click',()=>$('detailOverlay').classList.remove('open'));
+$('exportPdfBtn').addEventListener('click',exportPdf);
 
 // Init
 renderPhotoGrid();
