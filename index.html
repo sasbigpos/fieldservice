@@ -587,9 +587,13 @@ onAuthStateChanged(auth,async user=>{
       currentRole=snap.exists()?(snap.data().role||'user'):'user';
     }catch{ currentRole='user'; }
 
-    // Save user profile (creates doc if first login)
+    // Save/update user profile — always writes email so manually-created docs get patched
     try{
-      await setDoc(doc(db,'users',user.uid),{email:user.email,lastLogin:serverTimestamp()},{merge:true});
+      await setDoc(doc(db,'users',user.uid),{
+        email: user.email,
+        uid:   user.uid,
+        lastLogin: serverTimestamp()
+      },{merge:true});
     }catch{}
 
     applyRoleUI();
@@ -632,21 +636,36 @@ async function loadUsersList(){
   el.innerHTML='<div class="spinner"></div>';
   try{
     const snap=await getDocs(collection(db,'users'));
-    const users=snap.docs.map(d=>({uid:d.id,...d.data()}));
-    if(!users.length){el.innerHTML='<p class="text-muted" style="text-align:center;padding:16px">No users yet.</p>';return;}
-    el.innerHTML=users.map(u=>`
+    const users=snap.docs
+      .map(d=>({uid:d.id,...d.data()}))
+      .sort((a,b)=>(a.email||'').localeCompare(b.email||''));
+
+    if(!users.length){
+      el.innerHTML='<p class="text-muted" style="text-align:center;padding:16px">No users yet. Users appear here after their first login.</p>';
+      return;
+    }
+
+    el.innerHTML=users.map(u=>{
+      const displayEmail = u.email || '⚠️ No email — user must log in once';
+      const isMe = u.uid===currentUser.uid;
+      const roleCurrent = u.role||'user';
+      return `
       <div class="user-row">
-        <div class="user-row-info">
-          <div class="user-row-email">${esc(u.email||u.uid)}</div>
-          <div class="user-row-uid">${esc(u.uid)}</div>
+        <div style="width:28px;height:28px;border-radius:50%;background:${roleCurrent==='admin'?'rgba(244,185,66,.2)':'rgba(78,205,196,.15)'};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">
+          ${roleCurrent==='admin'?'👑':'👤'}
         </div>
-        <select class="role-select" data-uid="${esc(u.uid)}" ${u.uid===currentUser.uid?'disabled title="Cannot change your own role"':''}>
-          <option value="user"  ${(u.role||'user')==='user' ?'selected':''}>User</option>
-          <option value="admin" ${(u.role||'user')==='admin'?'selected':''}>Admin</option>
+        <div class="user-row-info">
+          <div class="user-row-email">${esc(displayEmail)}${isMe?' <span style="font-size:10px;color:var(--text-muted)">(you)</span>':''}</div>
+          <div class="user-row-uid">UID: ${esc(u.uid)}</div>
+        </div>
+        <select class="role-select" data-uid="${esc(u.uid)}" ${isMe?'disabled title="Cannot change your own role"':''}>
+          <option value="user"  ${roleCurrent==='user' ?'selected':''}>User</option>
+          <option value="admin" ${roleCurrent==='admin'?'selected':''}>Admin</option>
         </select>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }catch(e){
-    el.innerHTML='<p class="text-muted" style="text-align:center;padding:16px">Could not load users.</p>';
+    el.innerHTML=`<p class="text-muted" style="text-align:center;padding:16px">Could not load users.<br><small>${esc(e.message)}</small></p>`;
   }
 }
 
@@ -929,19 +948,26 @@ function clearForm(){
 async function loadReports(){
   const el=$('reportsList');el.innerHTML='<div class="spinner"></div>';
   try{
-    let q;
+    let snap;
     if(currentRole==='admin'){
-      // Admin sees all reports
-      q=query(collection(db,'reports'),orderBy('createdAtMs','desc'));
+      // Admin: all reports ordered by date
+      snap=await getDocs(query(collection(db,'reports'),orderBy('createdAtMs','desc')));
     }else{
-      // Regular user sees only their own
-      q=query(collection(db,'reports'),where('userId','==',currentUser.uid),orderBy('createdAtMs','desc'));
+      // Regular user: only their own reports — filter by userId only (no compound index needed)
+      // then sort in memory
+      snap=await getDocs(query(collection(db,'reports'),where('userId','==',currentUser.uid)));
     }
-    const snap=await getDocs(q);
     reports=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Sort in memory for non-admin (avoids needing a composite Firestore index)
+    if(currentRole!=='admin'){
+      reports.sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0));
+    }
     filteredReports=[...reports];
     renderReports();
-  }catch(e){el.innerHTML='<p class="text-muted" style="text-align:center;padding:30px">Could not load reports. Check Firebase config.</p>';}
+  }catch(e){
+    console.error('loadReports error:',e);
+    el.innerHTML=`<p class="text-muted" style="text-align:center;padding:30px">Could not load reports.<br><small style="font-size:11px;opacity:.7">${esc(e.message)}</small></p>`;
+  }
 }
 
 function renderReports(){
