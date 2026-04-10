@@ -636,13 +636,8 @@ async function loadUsersList(){
   el.innerHTML='<div class="spinner"></div>';
   try{
     const snap=await getDocs(collection(db,'users'));
-    console.log('Users snap size:', snap.size);
     const users=snap.docs
-      .map(d=>{
-        const data=d.data();
-        console.log('User doc:', d.id, JSON.stringify(data));
-        return {uid:d.id,...data};
-      })
+      .map(d=>({uid:d.id,...d.data()}))
       .sort((a,b)=>(a.email||'').localeCompare(b.email||''));
 
     if(!users.length){
@@ -651,25 +646,18 @@ async function loadUsersList(){
     }
 
     el.innerHTML=users.map(u=>{
-      const displayEmail = u.email || u.Email || u.EMAIL || '';
+      const displayEmail = u.email||u.Email||u.EMAIL||'(no email)';
       const isMe = u.uid===currentUser.uid;
       const roleCurrent = u.role||'user';
-      // Show ALL fields from the doc so we can see exactly what's stored
-      const allKeys = Object.keys(u).filter(k=>k!=='uid');
-      const rawFields = allKeys.length
-        ? allKeys.map(k=>`<span style="font-family:var(--mono);font-size:10px"><span style="color:var(--accent2)">${esc(k)}</span>: <span style="color:var(--text)">${esc(String(u[k]))}</span></span>`).join('<br/>')
-        : '<span style="color:var(--danger);font-size:11px">⚠️ Doc has NO fields at all</span>';
+      const lastLogin = u.lastLogin?.toDate ? u.lastLogin.toDate().toLocaleString() : '';
       return `
-      <div class="user-row" style="align-items:flex-start">
-        <div style="width:28px;height:28px;border-radius:50%;background:${roleCurrent==='admin'?'rgba(244,185,66,.2)':'rgba(78,205,196,.15)'};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px">
+      <div class="user-row">
+        <div style="width:34px;height:34px;border-radius:50%;background:${roleCurrent==='admin'?'rgba(244,185,66,.2)':'rgba(78,205,196,.15)'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">
           ${roleCurrent==='admin'?'👑':'👤'}
         </div>
         <div class="user-row-info">
-          <div class="user-row-email" style="font-size:14px;font-weight:600;margin-bottom:4px">
-            ${displayEmail ? esc(displayEmail) : '<span style="color:var(--danger)">⚠️ email field missing</span>'}
-            ${isMe?' <span style="font-size:10px;color:var(--text-muted)">(you)</span>':''}
-          </div>
-          <div style="line-height:1.8">${rawFields}</div>
+          <div class="user-row-email">${esc(displayEmail)}${isMe?' <span style="font-size:10px;color:var(--text-muted);margin-left:4px">(you)</span>':''}</div>
+          <div class="user-row-uid">${lastLogin?'Last login: '+esc(lastLogin):'&nbsp;'}</div>
         </div>
         <select class="role-select" data-uid="${esc(u.uid)}" ${isMe?'disabled title="Cannot change your own role"':''}>
           <option value="user"  ${roleCurrent==='user' ?'selected':''}>User</option>
