@@ -172,6 +172,20 @@ select option{background:var(--surface2)}
 .empty-state p{font-size:14px}
 input[type="file"]{display:none}
 
+/* ── GEOTAG ── */
+.geo-status{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;font-size:13px;font-family:var(--mono)}
+.geo-acquiring{background:rgba(78,205,196,.08);border:1px solid rgba(78,205,196,.25);color:var(--accent2)}
+.geo-success{background:rgba(80,250,123,.08);border:1px solid rgba(80,250,123,.25);color:var(--success)}
+.geo-error{background:rgba(255,85,85,.08);border:1px solid rgba(255,85,85,.25);color:var(--danger)}
+.geo-spinner{width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+.geo-address{font-size:14px;font-weight:500;margin-top:10px;line-height:1.4}
+.geo-coords{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-top:4px}
+.geo-map-link{display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-size:12px;font-family:var(--mono);text-decoration:none;margin-top:6px}
+.geo-map-link:hover{text-decoration:underline}
+.detail-geo{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:8px}
+.detail-geo-address{font-size:14px;font-weight:500;margin-bottom:4px}
+.detail-geo-coords{font-family:var(--mono);font-size:11px;color:var(--text-muted)}
+
 /* ── PRINT / PDF STYLES ── */
 @media print {
   .bottom-nav,.topbar,.detail-topbar,.toast,.loading-overlay{display:none!important}
@@ -262,6 +276,21 @@ input[type="file"]{display:none}
         <option value="complete">Complete</option>
         <option value="draft">Draft</option>
       </select>
+    </div>
+    <div class="form-card" id="geoCard">
+      <h3>📍 Location</h3>
+      <div id="geoStatus" class="geo-status geo-acquiring">
+        <div class="geo-spinner"></div>
+        <span id="geoStatusText">Acquiring location…</span>
+      </div>
+      <div id="geoResult" style="display:none">
+        <div class="geo-address" id="geoAddress"></div>
+        <div class="geo-coords" id="geoCoords"></div>
+      </div>
+      <div class="flex-row" style="margin-top:12px;gap:8px">
+        <button class="btn btn-ghost btn-sm flex-1" id="geoRetryBtn" style="margin-top:0">↻ Retry</button>
+        <button class="btn btn-ghost btn-sm flex-1" id="geoClearBtn" style="margin-top:0">✕ Clear</button>
+      </div>
     </div>
     <div class="form-card">
       <h3>🔧 Field Questions</h3>
@@ -442,7 +471,8 @@ let filteredReports= [];
 let isSignUp       = false;
 let selectedType   = 'text';
 let currentDetailId= null;
-let isDark         = true; // default dark
+let isDark         = true;
+let geoLocation    = null; // {lat, lng, address, accuracy}
 
 // ── Helpers ────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -462,7 +492,7 @@ function switchPage(name){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   $('page'+name).classList.add('active');
   $('nav-'+name).classList.add('active');
-  if(name==='NewReport') renderDynamicFields();
+  if(name==='NewReport'){ renderDynamicFields(); acquireLocation(); }
   if(name==='Reports') renderFilteredReports();
 }
 
@@ -681,6 +711,62 @@ function compressImage(base64,maxW=1024,qs=[0.7,0.5,0.35]){
   });
 }
 
+// ── Geolocation ────────────────────────────
+function geoSetStatus(state, text){
+  const el=$('geoStatus');
+  el.className='geo-status geo-'+state;
+  // show/hide spinner
+  const spinner=el.querySelector('.geo-spinner');
+  if(spinner) spinner.style.display=state==='acquiring'?'block':'none';
+  $('geoStatusText').textContent=text;
+}
+
+async function acquireLocation(){
+  if(!navigator.geolocation){
+    geoSetStatus('error','Geolocation not supported on this device');
+    return;
+  }
+  geoLocation=null;
+  $('geoResult').style.display='none';
+  $('geoStatus').style.display='flex';
+  geoSetStatus('acquiring','Acquiring GPS location…');
+
+  navigator.geolocation.getCurrentPosition(
+    async pos=>{
+      const {latitude:lat,longitude:lng,accuracy}=pos.coords;
+      geoSetStatus('acquiring','Resolving address…');
+      let address='';
+      try{
+        const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+          {headers:{'Accept-Language':'en','User-Agent':'FieldOpsApp/1.0'}});
+        const data=await res.json();
+        address=data.display_name||'';
+      }catch{ address=''; }
+
+      geoLocation={lat,lng,accuracy:Math.round(accuracy),address};
+      geoSetStatus('success',`📍 Located (±${Math.round(accuracy)}m)`);
+      $('geoResult').style.display='block';
+      $('geoAddress').textContent=address||`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      $('geoCoords').textContent=`${lat.toFixed(6)}° N, ${lng.toFixed(6)}° E  ·  Accuracy ±${Math.round(accuracy)}m`;
+    },
+    err=>{
+      const msgs={1:'Location permission denied. Please allow access.',2:'Location unavailable.',3:'Location request timed out.'};
+      geoSetStatus('error', msgs[err.code]||'Could not get location.');
+      geoLocation=null;
+    },
+    {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+  );
+}
+
+function clearGeo(){
+  geoLocation=null;
+  $('geoResult').style.display='none';
+  $('geoStatus').style.display='flex';
+  geoSetStatus('acquiring','Tap Retry to capture location');
+  const spinner=$('geoStatus').querySelector('.geo-spinner');
+  if(spinner) spinner.style.display='none';
+}
+
 // ── Submit Report ──────────────────────────
 async function submitReport(){
   const title=$('reportTitle').value.trim();
@@ -715,7 +801,8 @@ async function submitReport(){
 
   const totalPhotoCount=compGen.length+Object.values(compQ).reduce((s,a)=>s+a.length,0);
   const report={title,date,status,fields:fieldData,photoCount:compGen.length,totalPhotoCount,
-    userId:currentUser.uid,userEmail:currentUser.email,createdAt:serverTimestamp(),createdAtMs:Date.now()};
+    userId:currentUser.uid,userEmail:currentUser.email,createdAt:serverTimestamp(),createdAtMs:Date.now(),
+    ...(geoLocation?{geo:{lat:geoLocation.lat,lng:geoLocation.lng,accuracy:geoLocation.accuracy,address:geoLocation.address}}:{})};
 
   try{
     const docRef=await addDoc(collection(db,'reports'),report);
@@ -736,6 +823,7 @@ function clearForm(){
   $('reportStatus').value='pending';
   capturedPhotos=[];questionPhotos={};
   renderPhotoGrid();renderDynamicFields();
+  acquireLocation();
 }
 
 // ── Load Reports ────────────────────────────
@@ -847,7 +935,7 @@ function exportCsv(){
   filteredReports.forEach(r=>Object.values(r.fields||{}).forEach(f=>fieldLabels.add(f.label)));
   const fieldLabelArr=[...fieldLabels];
 
-  const headers=['Title','Date','Status','Submitted By','Photos',...fieldLabelArr];
+  const headers=['Title','Date','Status','Submitted By','Photos','Latitude','Longitude','Address',...fieldLabelArr];
   const rows=filteredReports.map(r=>{
     const base=[
       csvCell(r.title),
@@ -855,6 +943,9 @@ function exportCsv(){
       csvCell(r.status),
       csvCell(r.userEmail||''),
       csvCell(r.totalPhotoCount||0),
+      csvCell(r.geo?r.geo.lat:''),
+      csvCell(r.geo?r.geo.lng:''),
+      csvCell(r.geo?r.geo.address||'':''),
     ];
     const fieldVals=fieldLabelArr.map(lbl=>{
       const f=Object.values(r.fields||{}).find(x=>x.label===lbl);
@@ -899,6 +990,7 @@ async function openDetail(id){
     <div class="detail-field"><div class="detail-field-label">Date</div><div class="detail-field-value">${r.date}</div></div>
     <div class="detail-field"><div class="detail-field-label">Status</div><div class="detail-field-value"><span class="badge badge-${r.status}">${r.status}</span></div></div>
     <div class="detail-field"><div class="detail-field-label">Submitted by</div><div class="detail-field-value">${esc(r.userEmail||'')}</div></div>
+    ${r.geo?`<div class="detail-field"><div class="detail-field-label">📍 Location</div><div class="detail-geo">${r.geo.address?`<div class="detail-geo-address">${esc(r.geo.address)}</div>`:''}<div class="detail-geo-coords">${r.geo.lat.toFixed(6)}°, ${r.geo.lng.toFixed(6)}° · ±${r.geo.accuracy}m</div><a class="geo-map-link" href="https://www.google.com/maps?q=${r.geo.lat},${r.geo.lng}" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> View on Google Maps</a></div></div>`:''}
     <hr class="divider"/>${rows}
     ${r.photoCount>0?`<div class="detail-field" id="dgeneral"><div class="detail-field-label">📸 General Photos</div><div class="text-muted">Loading…</div></div>`:''}`;
 
@@ -954,7 +1046,13 @@ async function exportPdf(){
 
     pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.setTextColor(100,100,120);
     pdf.text(`Date: ${r.date}   |   Status: ${r.status.toUpperCase()}   |   By: ${r.userEmail||''}`,margin,y);
-    y+=6;
+    y+=5;
+    if(r.geo){
+      const geoText=r.geo.address?r.geo.address:`${r.geo.lat.toFixed(6)}, ${r.geo.lng.toFixed(6)}`;
+      const geoLines=pdf.splitTextToSize(`📍 ${geoText}  (±${r.geo.accuracy}m)`,contentW);
+      geoLines.forEach(line=>{pdf.text(line,margin,y);y+=4;});
+    }
+    y+=1;
     pdf.setDrawColor(220,220,235);pdf.setLineWidth(0.4);
     pdf.line(margin,y,pageW-margin,y);y+=6;
 
@@ -1117,12 +1215,18 @@ $('addQBtn').addEventListener('click',()=>toggleAddQuestion(true));
 $('cancelQBtn').addEventListener('click',()=>toggleAddQuestion(false));
 $('saveQBtn').addEventListener('click',saveQuestion);
 
+// Geo buttons
+$('geoRetryBtn').addEventListener('click', acquireLocation);
+$('geoClearBtn').addEventListener('click', clearGeo);
+
 // Detail
 $('closeDetailBtn').addEventListener('click',()=>$('detailOverlay').classList.remove('open'));
 $('exportPdfBtn').addEventListener('click',exportPdf);
 
 // Init
 renderPhotoGrid();
+// Pre-warm geolocation so it's ready when user opens New Report
+if(navigator.geolocation) acquireLocation();
 </script>
 </body>
 </html>
