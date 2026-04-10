@@ -172,6 +172,18 @@ select option{background:var(--surface2)}
 .empty-state p{font-size:14px}
 input[type="file"]{display:none}
 
+/* ── ROLE BADGE ── */
+.role-badge{font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.role-admin{background:rgba(244,185,66,.2);color:var(--accent);border:1px solid rgba(244,185,66,.4)}
+.role-user{background:rgba(78,205,196,.12);color:var(--accent2);border:1px solid rgba(78,205,196,.3)}
+
+/* ── USER MANAGEMENT (admin only) ── */
+.user-row{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px}
+.user-row-info{flex:1;min-width:0}
+.user-row-email{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-row-uid{font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role-select{padding:5px 8px;border-radius:6px;font-size:12px;font-family:var(--mono);background:var(--bg);border:1px solid var(--border);color:var(--text);cursor:pointer;min-width:80px}
+
 /* ── GEOTAG ── */
 .geo-status{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;font-size:13px;font-family:var(--mono)}
 .geo-acquiring{background:rgba(78,205,196,.08);border:1px solid rgba(78,205,196,.25);color:var(--accent2)}
@@ -241,6 +253,7 @@ input[type="file"]{display:none}
       <div class="user-chip">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
         <span id="userEmailChip"></span>
+        <span id="userRoleBadge" class="role-badge role-user">user</span>
         <span id="signOutBtn" style="cursor:pointer;color:var(--danger);padding-left:4px">✕</span>
       </div>
     </div>
@@ -358,6 +371,11 @@ input[type="file"]{display:none}
 
   <!-- ── Configure ── -->
   <div id="pageAdmin" class="page">
+    <!-- Non-admin notice -->
+    <div id="adminLockNotice" class="config-notice" style="display:none">
+      🔒 Only admins can configure report questions.
+    </div>
+    <div id="adminQuestionsSection">
     <div class="form-card">
       <h3>⚙️ Report Questions</h3>
       <p class="text-muted">Configure the questions shown in every field report.</p>
@@ -390,6 +408,16 @@ input[type="file"]{display:none}
         <button class="btn btn-ghost flex-1" id="cancelQBtn">Cancel</button>
         <button class="btn btn-primary flex-1" id="saveQBtn" style="margin-top:0">Save Question</button>
       </div>
+    </div>
+    </div><!-- /adminQuestionsSection -->
+
+    <!-- User Management — admin only -->
+    <div id="userMgmtSection" style="display:none">
+    <div class="form-card" style="margin-top:8px">
+      <h3>👥 User Management</h3>
+      <p class="text-muted">Set roles for registered users. Changes take effect on their next login.</p>
+      <div id="usersList" style="margin-top:16px"><div class="spinner"></div></div>
+    </div>
     </div>
   </div>
 
@@ -441,8 +469,8 @@ import { initializeApp }
 import { getAuth, createUserWithEmailAndPassword,
          signInWithEmailAndPassword, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs,
-         doc, setDoc, query, orderBy, serverTimestamp, deleteDoc }
+import { getFirestore, collection, addDoc, getDocs, getDoc,
+         doc, setDoc, query, where, orderBy, serverTimestamp, deleteDoc }
   from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
 // =============================================
@@ -473,6 +501,7 @@ let selectedType   = 'text';
 let currentDetailId= null;
 let isDark         = true;
 let geoLocation    = null; // {lat, lng, address, accuracy}
+let currentRole    = 'user'; // 'admin' or 'user'
 
 // ── Helpers ────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -494,6 +523,7 @@ function switchPage(name){
   $('nav-'+name).classList.add('active');
   if(name==='NewReport'){ renderDynamicFields(); acquireLocation(); }
   if(name==='Reports') renderFilteredReports();
+  if(name==='Admin' && currentRole==='admin') loadUsersList();
 }
 
 // ── Theme Toggle ───────────────────────────
@@ -546,19 +576,88 @@ async function handleAuth(){
   setLoading(false);
 }
 
-onAuthStateChanged(auth,user=>{
+onAuthStateChanged(auth,async user=>{
   if(user){
     currentUser=user;
     $('userEmailChip').textContent=user.email.split('@')[0];
+
+    // Fetch role from Firestore users/{uid}
+    try{
+      const snap=await getDoc(doc(db,'users',user.uid));
+      currentRole=snap.exists()?(snap.data().role||'user'):'user';
+    }catch{ currentRole='user'; }
+
+    // Save user profile (creates doc if first login)
+    try{
+      await setDoc(doc(db,'users',user.uid),{email:user.email,lastLogin:serverTimestamp()},{merge:true});
+    }catch{}
+
+    applyRoleUI();
     showScreen('app');
     loadQuestions();
     loadReports();
     if(firebaseConfig.apiKey==='YOUR_API_KEY') $('configNotice').style.display='block';
   }else{
     currentUser=null;
+    currentRole='user';
     showScreen('auth');
   }
 });
+
+// ── Role UI ─────────────────────────────────
+function applyRoleUI(){
+  const isAdmin = currentRole==='admin';
+
+  // Role badge in topbar
+  const badge=$('userRoleBadge');
+  badge.textContent=currentRole;
+  badge.className='role-badge '+(isAdmin?'role-admin':'role-user');
+
+  // Configure tab: admins see everything, users see lock notice
+  $('adminLockNotice').style.display   = isAdmin?'none':'block';
+  $('adminQuestionsSection').style.display = isAdmin?'block':'none';
+  $('userMgmtSection').style.display   = isAdmin?'block':'none';
+
+  // User filter dropdown: admins can filter by any user, others see only themselves
+  const filterUserWrap=$('filterUser').closest('div');
+  if(filterUserWrap) filterUserWrap.style.display = isAdmin?'block':'none';
+
+  // Load users list if admin
+  if(isAdmin) loadUsersList();
+}
+
+// ── Users Management ────────────────────────
+async function loadUsersList(){
+  const el=$('usersList');
+  el.innerHTML='<div class="spinner"></div>';
+  try{
+    const snap=await getDocs(collection(db,'users'));
+    const users=snap.docs.map(d=>({uid:d.id,...d.data()}));
+    if(!users.length){el.innerHTML='<p class="text-muted" style="text-align:center;padding:16px">No users yet.</p>';return;}
+    el.innerHTML=users.map(u=>`
+      <div class="user-row">
+        <div class="user-row-info">
+          <div class="user-row-email">${esc(u.email||u.uid)}</div>
+          <div class="user-row-uid">${esc(u.uid)}</div>
+        </div>
+        <select class="role-select" data-uid="${esc(u.uid)}" ${u.uid===currentUser.uid?'disabled title="Cannot change your own role"':''}>
+          <option value="user"  ${(u.role||'user')==='user' ?'selected':''}>User</option>
+          <option value="admin" ${(u.role||'user')==='admin'?'selected':''}>Admin</option>
+        </select>
+      </div>`).join('');
+  }catch(e){
+    el.innerHTML='<p class="text-muted" style="text-align:center;padding:16px">Could not load users.</p>';
+  }
+}
+
+async function updateUserRole(uid, role){
+  try{
+    await setDoc(doc(db,'users',uid),{role},{merge:true});
+    showToast(`Role updated to ${role} ✓`,'success');
+  }catch(e){
+    showToast('Failed to update role','error');
+  }
+}
 
 // ── Questions ───────────────────────────────
 async function loadQuestions(){
@@ -830,11 +929,19 @@ function clearForm(){
 async function loadReports(){
   const el=$('reportsList');el.innerHTML='<div class="spinner"></div>';
   try{
-    const snap=await getDocs(query(collection(db,'reports'),orderBy('createdAtMs','desc')));
+    let q;
+    if(currentRole==='admin'){
+      // Admin sees all reports
+      q=query(collection(db,'reports'),orderBy('createdAtMs','desc'));
+    }else{
+      // Regular user sees only their own
+      q=query(collection(db,'reports'),where('userId','==',currentUser.uid),orderBy('createdAtMs','desc'));
+    }
+    const snap=await getDocs(q);
     reports=snap.docs.map(d=>({id:d.id,...d.data()}));
     filteredReports=[...reports];
     renderReports();
-  }catch{el.innerHTML='<p class="text-muted" style="text-align:center;padding:30px">Could not load reports. Check Firebase config.</p>';}
+  }catch(e){el.innerHTML='<p class="text-muted" style="text-align:center;padding:30px">Could not load reports. Check Firebase config.</p>';}
 }
 
 function renderReports(){
@@ -843,11 +950,16 @@ function renderReports(){
   $('statTotal').textContent=reports.length;
   $('statToday').textContent=reports.filter(r=>r.date===today).length;
 
-  // Populate email dropdown with unique users from all reports
-  const emails=[...new Set(reports.map(r=>r.userEmail||'').filter(Boolean))].sort();
+  // Populate email dropdown — admins get all users, regular users see only themselves
   const sel=$('filterUser');
-  const current=sel.value;
-  sel.innerHTML='<option value="">All Users</option>'+emails.map(e=>`<option value="${esc(e)}"${e===current?' selected':''}>${esc(e)}</option>`).join('');
+  if(currentRole==='admin'){
+    const emails=[...new Set(reports.map(r=>r.userEmail||'').filter(Boolean))].sort();
+    const current=sel.value;
+    sel.innerHTML='<option value="">All Users</option>'+emails.map(e=>`<option value="${esc(e)}"${e===current?' selected':''}>${esc(e)}</option>`).join('');
+  } else {
+    // Non-admin: fix to their own email only
+    sel.innerHTML=`<option value="">${esc(currentUser.email)}</option>`;
+  }
 
   if(!reports.length){
     el.innerHTML=`<div class="empty-state">
@@ -855,7 +967,6 @@ function renderReports(){
       <p>No reports yet.<br/>Tap New to get started.</p></div>`;
     return;
   }
-  // Show latest 10 on dashboard
   el.innerHTML=reports.slice(0,10).map(r=>`
     <div class="report-card" data-rid="${r.id}">
       <div class="report-card-top">
@@ -1203,6 +1314,12 @@ $('dynamicFields').addEventListener('click',e=>{
 $('questionsList').addEventListener('click',e=>{
   const btn=e.target.closest('[data-delidx]');
   if(btn) deleteQuestion(btn.dataset.delid,+btn.dataset.delidx);
+});
+
+// User role changes (delegated on usersList)
+$('usersList').addEventListener('change',e=>{
+  const sel=e.target.closest('.role-select');
+  if(sel) updateUserRole(sel.dataset.uid, sel.value);
 });
 $('typeGrid').addEventListener('click',e=>{
   const opt=e.target.closest('.type-option');if(!opt)return;
