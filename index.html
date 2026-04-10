@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<title>FieldOps Report</title>
+<title>Field Service App</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <!-- jsPDF for PDF export -->
@@ -67,7 +67,7 @@ select option{background:var(--surface2)}
 /* ── APP SHELL ── */
 #appScreen{background:var(--bg)}
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
-.topbar-title{font-family:var(--mono);font-size:15px;font-weight:600}
+.topbar-title{font-family:var(--mono);font-size:13px;font-weight:600}
 .topbar-title span{color:var(--accent)}
 .topbar-right{display:flex;align-items:center;gap:8px}
 .user-chip{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);padding:6px 10px;border-radius:20px;font-size:12px;color:var(--text-muted)}
@@ -220,10 +220,10 @@ input[type="file"]{display:none}
   <div class="auth-box">
     <div class="logo">
       <div class="logo-icon">🔧</div>
-      <div class="logo-text">Field<span>Ops</span></div>
+      <div class="logo-text">Field Service <span>App</span></div>
     </div>
     <h2 id="authTitle">Welcome back</h2>
-    <p class="subtitle" id="authSubtitle">Sign in to access your field reports</p>
+    <p class="subtitle" id="authSubtitle">Sign in to access your field service reports</p>
     <label>Email</label>
     <input type="email" id="authEmail" placeholder="you@company.com" autocomplete="email"/>
     <label>Password</label>
@@ -243,7 +243,7 @@ input[type="file"]{display:none}
 <!-- ═══ APP ═══ -->
 <div id="appScreen" class="screen">
   <div class="topbar">
-    <div class="topbar-title">Field<span>Ops</span></div>
+    <div class="topbar-title">Field Service <span>App</span></div>
     <div class="topbar-right">
       <!-- Theme Toggle -->
       <button class="theme-toggle" id="themeToggleBtn">
@@ -264,13 +264,33 @@ input[type="file"]{display:none}
     <div id="configNotice" class="config-notice" style="display:none">
       ⚠️ Firebase not configured. Replace the <code>firebaseConfig</code> values in the &lt;script&gt;.
     </div>
-    <div class="stats-row">
-      <div class="stat-card"><div class="stat-val" id="statTotal">—</div><div class="stat-label">Total Reports</div></div>
-      <div class="stat-card"><div class="stat-val" id="statToday">—</div><div class="stat-label">Today</div></div>
+
+    <!-- Greeting -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:18px;font-weight:600" id="dashGreeting">Welcome back 👋</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-top:3px" id="dashDate"></div>
     </div>
+
+    <!-- Clickable stat cards -->
+    <div class="stats-row">
+      <div class="stat-card" id="statCardTotal" style="cursor:pointer;transition:border-color .2s,box-shadow .2s" title="Show all reports">
+        <div class="stat-val" id="statTotal">—</div>
+        <div class="stat-label">Total Reports</div>
+        <div style="font-size:10px;font-family:var(--mono);color:var(--accent);margin-top:6px;opacity:.7">tap to view all ↓</div>
+      </div>
+      <div class="stat-card" id="statCardToday" style="cursor:pointer;transition:border-color .2s,box-shadow .2s" title="Show today's reports">
+        <div class="stat-val" id="statToday">—</div>
+        <div class="stat-label">Today</div>
+        <div style="font-size:10px;font-family:var(--mono);color:var(--accent);margin-top:6px;opacity:.7">tap to filter ↓</div>
+      </div>
+    </div>
+
     <div class="section-head">
-      <h3>Recent Reports</h3>
-      <button class="btn btn-ghost btn-sm" id="refreshBtn">↻ Refresh</button>
+      <h3 id="dashListLabel">Recent Reports</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-sm" id="dashShowAllBtn" style="display:none">Show All</button>
+        <button class="btn btn-ghost btn-sm" id="refreshBtn">↻ Refresh</button>
+      </div>
     </div>
     <div id="reportsList"><div class="spinner"></div></div>
   </div>
@@ -532,10 +552,10 @@ function applyTheme(dark){
   document.body.classList.toggle('light-mode',!dark);
   $('themeIcon').textContent=dark?'☀️':'🌙';
   $('themeLabel').textContent=dark?'Light':'Dark';
-  localStorage.setItem('fieldops_theme', dark?'dark':'light');
+  localStorage.setItem('fsa_theme', dark?'dark':'light');
 }
 // Load saved theme
-const savedTheme=localStorage.getItem('fieldops_theme');
+const savedTheme=localStorage.getItem('fsa_theme');
 applyTheme(savedTheme!=='light'); // default dark
 
 $('themeToggleBtn').addEventListener('click',()=>applyTheme(!isDark));
@@ -544,7 +564,7 @@ $('themeToggleBtn').addEventListener('click',()=>applyTheme(!isDark));
 function toggleAuthMode(){
   isSignUp=!isSignUp;
   $('authTitle').textContent      = isSignUp?'Create account':'Welcome back';
-  $('authSubtitle').textContent   = isSignUp?'Start tracking field reports':'Sign in to access your field reports';
+  $('authSubtitle').textContent   = isSignUp?'Start tracking field service reports':'Sign in to access your field service reports';
   $('authBtnText').textContent    = isSignUp?'Create Account':'Sign In';
   $('authToggleText').textContent = isSignUp?'Already have an account?':"Don't have an account?";
   $('authToggleLink').textContent = isSignUp?' Sign in':' Create account';
@@ -598,6 +618,7 @@ onAuthStateChanged(auth,async user=>{
 
     applyRoleUI();
     showScreen('app');
+    switchPage('Dashboard');  // always land on Dashboard
     loadQuestions();
     loadReports();
     if(firebaseConfig.apiKey==='YOUR_API_KEY') $('configNotice').style.display='block';
@@ -981,35 +1002,59 @@ async function loadReports(){
 }
 
 function renderReports(){
-  const el=$('reportsList');
   const today=new Date().toISOString().split('T')[0];
-  $('statTotal').textContent=reports.length;
-  $('statToday').textContent=reports.filter(r=>r.date===today).length;
+  const todayReports=reports.filter(r=>r.date===today);
 
-  // Populate email dropdown — admins get all users, regular users see only themselves
+  // Greeting
+  const hour=new Date().getHours();
+  const greet=hour<12?'Good morning 🌅':hour<17?'Good afternoon ☀️':'Good evening 🌙';
+  $('dashGreeting').textContent=greet+', '+(currentUser?.email?.split('@')[0]||'');
+  $('dashDate').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // Stats
+  $('statTotal').textContent=reports.length;
+  $('statToday').textContent=todayReports.length;
+
+  // Populate email dropdown for filter page
   const sel=$('filterUser');
   if(currentRole==='admin'){
     const emails=[...new Set(reports.map(r=>r.userEmail||'').filter(Boolean))].sort();
-    const current=sel.value;
-    sel.innerHTML='<option value="">All Users</option>'+emails.map(e=>`<option value="${esc(e)}"${e===current?' selected':''}>${esc(e)}</option>`).join('');
-  } else {
-    // Non-admin: fix to their own email only
+    const cur=sel.value;
+    sel.innerHTML='<option value="">All Users</option>'+emails.map(e=>`<option value="${esc(e)}"${e===cur?' selected':''}>${esc(e)}</option>`).join('');
+  }else{
     sel.innerHTML=`<option value="">${esc(currentUser.email)}</option>`;
   }
 
   if(!reports.length){
-    el.innerHTML=`<div class="empty-state">
+    $('reportsList').innerHTML=`<div class="empty-state">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      <p>No reports yet.<br/>Tap New to get started.</p></div>`;
+      <p>No reports yet.<br/>Tap <strong>New</strong> to get started.</p></div>`;
+    $('dashListLabel').textContent='Reports';
+    $('dashShowAllBtn').style.display='none';
     return;
   }
-  el.innerHTML=reports.slice(0,10).map(r=>`
+  // Default: show all reports, highlight Total card
+  $('statCardTotal').style.borderColor='var(--accent)';
+  $('statCardToday').style.borderColor='';
+  renderDashList(reports,'All Reports',false);
+}
+
+// Render a list of reports on the dashboard
+function renderDashList(list, label, showAllBtn){
+  $('dashListLabel').textContent=`${label} (${list.length})`;
+  $('dashShowAllBtn').style.display=showAllBtn?'inline-flex':'none';
+  const el=$('reportsList');
+  if(!list.length){
+    el.innerHTML=`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><p>No reports for today.</p></div>`;
+    return;
+  }
+  el.innerHTML=list.map(r=>`
     <div class="report-card" data-rid="${r.id}">
       <div class="report-card-top">
         <div class="report-card-title">${esc(r.title)}</div>
         <span class="badge badge-${r.status}">${r.status}</span>
       </div>
-      <div class="report-card-sub">📅 ${r.date} · 👤 ${esc(r.userEmail||'')}${r.totalPhotoCount?' · 📸 '+r.totalPhotoCount:''}</div>
+      <div class="report-card-sub">📅 ${r.date} · 👤 ${esc(r.userEmail||'')}${r.totalPhotoCount?' · 📸 '+r.totalPhotoCount:''}${r.geo?' · 📍':''}</div>
     </div>`).join('');
 }
 
@@ -1184,7 +1229,7 @@ async function exportPdf(){
     pdf.rect(0,0,pageW,18,'F');
     pdf.setTextColor(17,17,17);
     pdf.setFontSize(13);pdf.setFont('helvetica','bold');
-    pdf.text('FieldOps — Field Service Report',margin,12);
+    pdf.text('Field Service App — Report',margin,12);
 
     y=26;
     // ── Title block ──
@@ -1313,7 +1358,24 @@ $('nav-NewReport').addEventListener('click',()=>switchPage('NewReport'));
 $('nav-Reports').addEventListener('click',()=>switchPage('Reports'));
 $('nav-Admin').addEventListener('click',()=>switchPage('Admin'));
 
-// Dashboard
+// Dashboard — stat card interactivity
+$('statCardTotal').addEventListener('click',()=>{
+  renderDashList(reports,'All Reports',false);
+  $('statCardTotal').style.borderColor='var(--accent)';
+  $('statCardToday').style.borderColor='';
+});
+$('statCardToday').addEventListener('click',()=>{
+  const today=new Date().toISOString().split('T')[0];
+  const todayList=reports.filter(r=>r.date===today);
+  renderDashList(todayList,"Today's Reports",true);
+  $('statCardToday').style.borderColor='var(--accent)';
+  $('statCardTotal').style.borderColor='';
+});
+$('dashShowAllBtn').addEventListener('click',()=>{
+  renderDashList(reports,'All Reports',false);
+  $('statCardTotal').style.borderColor='var(--accent)';
+  $('statCardToday').style.borderColor='';
+});
 $('refreshBtn').addEventListener('click',loadReports);
 $('reportsList').addEventListener('click',e=>{const c=e.target.closest('[data-rid]');if(c)openDetail(c.dataset.rid);});
 
