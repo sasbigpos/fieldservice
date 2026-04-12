@@ -199,12 +199,15 @@ input[type="file"]{display:none}
 .detail-geo-coords{font-family:var(--mono);font-size:11px;color:var(--text-muted)}
 
 /* ── SIGNATURES ── */
-.sig-block{border-top:2px solid var(--border);padding-top:12px;margin-top:8px}
-.sig-label{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
-.sig-canvas{width:100%;height:auto;min-height:100px;border:1px dashed var(--border);border-radius:8px;background:var(--surface2);cursor:crosshair;display:block;touch-action:none;-webkit-user-select:none;user-select:none}
-.sig-name-input{margin-top:8px}
-.sig-date-val{font-size:12px;font-family:var(--mono);color:var(--text-muted);margin-top:6px}
-.sig-clear-btn{font-size:11px;color:var(--danger);background:none;border:none;cursor:pointer;font-family:var(--mono);margin-top:4px;padding:0}
+.sig-label{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em}
+.sig-preview-box{width:100%;aspect-ratio:3/1;min-height:80px;border:2px dashed var(--border);border-radius:10px;background:var(--surface2);cursor:pointer;overflow:hidden;display:flex;align-items:center;justify-content:center;transition:border-color .2s,background .2s;position:relative}
+.sig-preview-box:hover,.sig-preview-box:active{border-color:var(--accent);background:rgba(244,185,66,.05)}
+.sig-preview-empty{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text-muted);font-size:12px;font-family:var(--mono);pointer-events:none}
+.sig-preview-img{width:100%;height:100%;object-fit:contain;padding:6px}
+.sig-clear-btn{font-size:11px;color:var(--danger);background:none;border:none;cursor:pointer;font-family:var(--mono);padding:0;display:inline-block}
+.sig-clear-btn:hover{text-decoration:underline}
+.sig-date-val{font-size:11px;font-family:var(--mono);color:var(--text-muted);margin-top:4px}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
 /* ── PRINT / PDF STYLES ── */
 @media print {
@@ -349,31 +352,36 @@ input[type="file"]{display:none}
     </div>
     <div class="form-card">
       <h3>✍️ Signatures</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <p class="text-muted" style="margin-bottom:12px">Tap a signature box to sign</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <!-- Technical Person -->
         <div>
           <div class="sig-label">Technical Person</div>
-          <div>
-            <label style="margin-top:0">Name</label>
-            <input type="text" id="sigTechName" class="sig-name-input" placeholder="Full name"/>
+          <label style="margin-top:8px">Name</label>
+          <input type="text" id="sigTechName" placeholder="Full name"/>
+          <div class="sig-preview-box" id="sigTechPreview" data-sigid="tech" style="margin-top:10px">
+            <div class="sig-preview-empty" id="sigTechEmpty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span>Tap to sign</span>
+            </div>
+            <img id="sigTechImg" class="sig-preview-img" style="display:none" alt="signature"/>
           </div>
-          <div style="margin-top:8px">
-            <label>Signature</label>
-            <canvas id="sigTechCanvas" class="sig-canvas" width="600" height="180"></canvas>
-            <button class="sig-clear-btn" data-target="sigTechCanvas">✕ Clear</button>
-          </div>
+          <button class="sig-clear-btn" data-sigid="tech" style="margin-top:6px">✕ Clear signature</button>
           <div class="sig-date-val" id="sigTechDate"></div>
         </div>
+        <!-- Customer -->
         <div>
           <div class="sig-label">Acknowledged by Customer</div>
-          <div>
-            <label style="margin-top:0">Name</label>
-            <input type="text" id="sigCustName" class="sig-name-input" placeholder="Full name"/>
+          <label style="margin-top:8px">Name</label>
+          <input type="text" id="sigCustName" placeholder="Full name"/>
+          <div class="sig-preview-box" id="sigCustPreview" data-sigid="customer" style="margin-top:10px">
+            <div class="sig-preview-empty" id="sigCustEmpty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span>Tap to sign</span>
+            </div>
+            <img id="sigCustImg" class="sig-preview-img" style="display:none" alt="signature"/>
           </div>
-          <div style="margin-top:8px">
-            <label>Signature</label>
-            <canvas id="sigCustCanvas" class="sig-canvas" width="600" height="180"></canvas>
-            <button class="sig-clear-btn" data-target="sigCustCanvas">✕ Clear</button>
-          </div>
+          <button class="sig-clear-btn" data-sigid="customer" style="margin-top:6px">✕ Clear signature</button>
           <div class="sig-date-val" id="sigCustDate"></div>
         </div>
       </div>
@@ -535,6 +543,31 @@ input[type="file"]{display:none}
 <div class="toast" id="toast"></div>
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
 
+<!-- ═══ SIGNATURE MODAL ═══ -->
+<div id="sigModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center;animation:fadeIn .2s ease">
+  <div id="sigModalBox" style="background:var(--surface);width:100%;max-width:600px;border-radius:18px 18px 0 0;padding:20px;box-shadow:0 -8px 32px rgba(0,0,0,.4)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div style="font-weight:600;font-size:16px" id="sigModalTitle">Signature</div>
+        <div style="font-size:12px;color:var(--text-muted);font-family:var(--mono);margin-top:2px">Draw your signature in the box below</div>
+      </div>
+      <button id="sigModalClose" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text-muted);cursor:pointer;font-size:13px">✕</button>
+    </div>
+    <!-- Canvas fills full width of modal -->
+    <canvas id="sigModalCanvas"
+      style="width:100%;border-radius:10px;background:var(--surface2);border:2px solid var(--accent);display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none;user-select:none"
+      height="260">
+    </canvas>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button id="sigModalClear" class="btn btn-ghost flex-1" style="margin-top:0">✕ Clear</button>
+      <button id="sigModalDone" class="btn btn-primary flex-1" style="margin-top:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"><polyline points="20 6 9 17 4 12"/></svg>
+        Done
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════════════════════════
      SINGLE MODULE SCRIPT
      ═══════════════════════════════════════════ -->
@@ -597,8 +630,7 @@ function switchPage(name){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   $('page'+name).classList.add('active');
   $('nav-'+name).classList.add('active');
-  if(name==='NewReport'){ renderDynamicFields(); acquireLocation(); updateJobPrefixUI(); }
-  if(name==='Reports') renderFilteredReports();
+  if(name==='NewReport'){ renderDynamicFields(); acquireLocation(); updateJobPrefixUI(); }  if(name==='Reports') renderFilteredReports();
   if(name==='Admin' && currentRole==='admin'){ loadUsersList(); updateJobPrefixUI(); }
 }
 
@@ -1049,9 +1081,9 @@ async function submitReport(){
   });
   if(!valid)return;
 
-  // Capture signatures
-  const sigTech={name:$('sigTechName').value.trim(), date:new Date().toLocaleDateString(), img:getCanvasData('sigTechCanvas')};
-  const sigCust={name:$('sigCustName').value.trim(), date:new Date().toLocaleDateString(), img:getCanvasData('sigCustCanvas')};
+  // Capture signatures from sigData store
+  const sigTech={name:$('sigTechName').value.trim(), date:sigData.tech.date||new Date().toLocaleDateString(), img:sigData.tech.img||''};
+  const sigCust={name:$('sigCustName').value.trim(), date:sigData.customer.date||new Date().toLocaleDateString(), img:sigData.customer.img||''};
 
   setLoading(true);showToast('Compressing photos…','');
 
@@ -1093,86 +1125,100 @@ function clearForm(){
   capturedPhotos=[];questionPhotos={};
   renderPhotoGrid();renderDynamicFields();
   acquireLocation();
-  clearCanvas('sigTechCanvas');
-  clearCanvas('sigCustCanvas');
+  // Reset signatures
+  sigData.tech     = {img:'',name:'',date:''};
+  sigData.customer = {img:'',name:'',date:''};
   $('sigTechName').value='';
   $('sigCustName').value='';
-  // Re-init after clear to ensure events still work
-  initCanvas('sigTechCanvas');
-  initCanvas('sigCustCanvas');
-  const today=new Date().toLocaleDateString();
-  const td=$('sigTechDate'), cd=$('sigCustDate');
-  if(td) td.textContent='Date: '+today;
-  if(cd) cd.textContent='Date: '+today;
+  updateSigPreviews();
   updateJobPrefixUI();
 }
 
 // ── Signature Canvas Helpers ────────────────
-// ── Signature Canvas — completely rewritten ─
-// Uses a cloneNode approach to wipe all old listeners before re-init
-const _sigState={};  // tracks drawing state per canvas id
+// ── Signature Modal ────────────────────────
+// Stores captured signatures: {tech:{img,name,date}, customer:{img,name,date}}
+const sigData = {tech:{img:'',name:'',date:''}, customer:{img:'',name:'',date:''}};
+let sigModalTarget = ''; // 'tech' or 'customer'
+let sigDrawing = false;
 
-function initCanvas(id){
-  const canvas=$(id);
-  if(!canvas) return;
+function openSigModal(sigid){
+  sigModalTarget = sigid;
+  const isAdmin = sigid==='tech';
+  $('sigModalTitle').textContent = isAdmin ? 'Technical Person — Signature' : 'Customer Acknowledgement — Signature';
+  const modal = $('sigModal');
+  modal.style.display='flex';
+  document.body.style.overflow='hidden';
 
-  // Remove all old listeners by replacing the node with a clone
-  const fresh=canvas.cloneNode(true);
-  canvas.parentNode.replaceChild(fresh,canvas);
-  const c=fresh;  // work with the fresh clone from here
+  // Set canvas width to match its CSS display width for pixel-perfect drawing
+  const canvas = $('sigModalCanvas');
+  const box = $('sigModalBox');
+  // Set actual pixel width = display width for 1:1 coordinate mapping
+  canvas.width = box.clientWidth - 40; // 20px padding each side
+  canvas.height = 260;
 
-  const ctx=c.getContext('2d');
-  ctx.clearRect(0,0,c.width,c.height);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // Draw a subtle baseline guide
-  ctx.strokeStyle='rgba(120,130,160,0.15)';
-  ctx.lineWidth=1;
+  // Draw baseline guide
+  ctx.strokeStyle = 'rgba(120,130,160,0.2)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6,4]);
   ctx.beginPath();
-  ctx.moveTo(10,c.height-20);
-  ctx.lineTo(c.width-10,c.height-20);
+  ctx.moveTo(20, canvas.height - 40);
+  ctx.lineTo(canvas.width - 20, canvas.height - 40);
   ctx.stroke();
+  ctx.setLineDash([]);
 
-  _sigState[id]={drawing:false};
+  // If existing signature, show it
+  if(sigData[sigid]?.img){
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    img.src = sigData[sigid].img;
+  }
+
+  initModalCanvas();
+}
+
+function initModalCanvas(){
+  const canvas = $('sigModalCanvas');
+  // Clone to wipe any old listeners
+  const fresh = canvas.cloneNode(true);
+  canvas.parentNode.replaceChild(fresh, canvas);
+  const c = fresh;
+  const ctx = c.getContext('2d');
 
   function getXY(e){
-    const rect=c.getBoundingClientRect();
-    // Scale from CSS pixels to canvas pixels
-    const scaleX=c.width/rect.width;
-    const scaleY=c.height/rect.height;
-    const src=e.touches ? e.touches[0] : e;
+    const rect = c.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    // Canvas pixel coords = CSS coords (we set width=clientWidth so scale=1)
     return {
-      x:(src.clientX-rect.left)*scaleX,
-      y:(src.clientY-rect.top)*scaleY
+      x: src.clientX - rect.left,
+      y: src.clientY - rect.top
     };
   }
 
   function onStart(e){
     e.preventDefault();
-    e.stopPropagation();
-    _sigState[id].drawing=true;
-    const {x,y}=getXY(e);
+    sigDrawing = true;
+    const {x,y} = getXY(e);
     ctx.beginPath();
     ctx.moveTo(x,y);
-    // Draw a dot for taps/clicks with no drag
-    ctx.lineWidth=2.5;
-    ctx.lineCap='round';
-    ctx.lineJoin='round';
-    ctx.strokeStyle=document.body.classList.contains('light-mode')?'#1a1d27':'#e8eaf0';
-    ctx.arc(x,y,0.5,0,Math.PI*2);
-    ctx.stroke();
+    // Draw dot for taps
+    ctx.arc(x,y,1,0,Math.PI*2);
+    ctx.fillStyle = document.body.classList.contains('light-mode') ? '#1a1d27' : '#e8eaf0';
+    ctx.fill();
     ctx.beginPath();
     ctx.moveTo(x,y);
   }
 
   function onMove(e){
     e.preventDefault();
-    e.stopPropagation();
-    if(!_sigState[id].drawing) return;
-    const {x,y}=getXY(e);
-    ctx.lineWidth=2.5;
-    ctx.lineCap='round';
-    ctx.lineJoin='round';
-    ctx.strokeStyle=document.body.classList.contains('light-mode')?'#1a1d27':'#e8eaf0';
+    if(!sigDrawing) return;
+    const {x,y} = getXY(e);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = document.body.classList.contains('light-mode') ? '#1a1d27' : '#e8eaf0';
     ctx.lineTo(x,y);
     ctx.stroke();
     ctx.beginPath();
@@ -1181,52 +1227,71 @@ function initCanvas(id){
 
   function onEnd(e){
     e.preventDefault();
-    _sigState[id].drawing=false;
-    ctx.beginPath(); // reset path
+    sigDrawing = false;
+    ctx.beginPath();
   }
 
-  // Mouse events
-  c.addEventListener('mousedown', onStart);
-  c.addEventListener('mousemove', onMove);
-  c.addEventListener('mouseup',   onEnd);
-  c.addEventListener('mouseleave',onEnd);
-
-  // Touch events — must be non-passive to allow preventDefault
+  c.addEventListener('mousedown',  onStart);
+  c.addEventListener('mousemove',  onMove);
+  c.addEventListener('mouseup',    onEnd);
+  c.addEventListener('mouseleave', onEnd);
   c.addEventListener('touchstart', onStart, {passive:false});
   c.addEventListener('touchmove',  onMove,  {passive:false});
   c.addEventListener('touchend',   onEnd,   {passive:false});
   c.addEventListener('touchcancel',onEnd,   {passive:false});
 }
 
-function clearCanvas(id){
-  // After cloneNode, $(id) always returns the current node
-  const canvas=$(id);
-  if(!canvas) return;
-  const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  // Redraw baseline guide
-  ctx.strokeStyle='rgba(120,130,160,0.15)';
-  ctx.lineWidth=1;
-  ctx.beginPath();
-  ctx.moveTo(10,canvas.height-20);
-  ctx.lineTo(canvas.width-10,canvas.height-20);
-  ctx.stroke();
-  _sigState[id]={drawing:false};
-}
+function closeSigModal(save){
+  const canvas = $('sigModalCanvas');
+  if(save){
+    // Check if anything was drawn (any non-background pixel)
+    const ctx = canvas.getContext('2d');
+    const px = ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    let hasSig = false;
+    for(let i=3;i<px.length;i+=4){ if(px[i]>30){hasSig=true;break;} }
 
-function getCanvasData(id){
-  const canvas=$(id);
-  if(!canvas) return '';
-  const ctx=canvas.getContext('2d');
-  const px=ctx.getImageData(0,0,canvas.width,canvas.height).data;
-  // Check if any pixel is non-transparent (alpha > 0) and not the guide line colour
-  let hasSignature=false;
-  for(let i=3;i<px.length;i+=4){
-    if(px[i]>30){ hasSignature=true; break; }
+    if(hasSig){
+      sigData[sigModalTarget].img  = canvas.toDataURL('image/png');
+      sigData[sigModalTarget].date = new Date().toLocaleDateString();
+    }
   }
-  return hasSignature ? canvas.toDataURL('image/png') : '';
+  updateSigPreviews();
+  $('sigModal').style.display='none';
+  document.body.style.overflow='';
 }
 
+function updateSigPreviews(){
+  ['tech','customer'].forEach(id=>{
+    const emptyEl = $(id==='tech'?'sigTechEmpty':'sigCustEmpty');
+    const imgEl   = $(id==='tech'?'sigTechImg':'sigCustImg');
+    const dateEl  = $(id==='tech'?'sigTechDate':'sigCustDate');
+    if(sigData[id]?.img){
+      if(emptyEl) emptyEl.style.display='none';
+      if(imgEl){ imgEl.src=sigData[id].img; imgEl.style.display='block'; }
+      if(dateEl) dateEl.textContent='Signed: '+sigData[id].date;
+    } else {
+      if(emptyEl) emptyEl.style.display='flex';
+      if(imgEl){ imgEl.src=''; imgEl.style.display='none'; }
+      if(dateEl) dateEl.textContent='';
+    }
+  });
+}
+
+function clearSig(sigid){
+  sigData[sigid] = {img:'',name:'',date:''};
+  updateSigPreviews();
+}
+
+function getCanvasData(sigid){
+  return sigData[sigid]?.img || '';
+}
+
+// Expose for modal event listeners
+window._openSigModal  = openSigModal;
+window._closeSigModal = closeSigModal;
+window._clearSig      = clearSig;
+
+// ── Load Reports ────────────────────────────
 // ── Load Reports ────────────────────────────
 async function loadReports(){
   const el=$('reportsList');el.innerHTML='<div class="spinner"></div>';
@@ -1725,13 +1790,37 @@ $('questionsList').addEventListener('click',e=>{
   if(down){ moveQuestion(+down.dataset.movedown,1); return; }
 });
 
-// Signature canvas clear buttons
-document.addEventListener('click',e=>{
-  const btn=e.target.closest('.sig-clear-btn');
-  if(btn){
-    clearCanvas(btn.dataset.target);
-    initCanvas(btn.dataset.target); // re-attach events after clear
-  }
+// Signature preview boxes — open modal on tap
+document.addEventListener('click', e=>{
+  const box = e.target.closest('.sig-preview-box');
+  if(box) openSigModal(box.dataset.sigid);
+
+  const clr = e.target.closest('.sig-clear-btn');
+  if(clr){ clearSig(clr.dataset.sigid); }
+});
+
+// Signature modal buttons
+$('sigModalClose').addEventListener('click', ()=>closeSigModal(false));
+$('sigModalDone').addEventListener('click',  ()=>closeSigModal(true));
+$('sigModalClear').addEventListener('click', ()=>{
+  const c=$('sigModalCanvas');
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+  // Redraw guide line
+  ctx.strokeStyle='rgba(120,130,160,0.2)';
+  ctx.lineWidth=1;
+  ctx.setLineDash([6,4]);
+  ctx.beginPath();
+  ctx.moveTo(20,c.height-40);
+  ctx.lineTo(c.width-20,c.height-40);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  initModalCanvas();
+});
+
+// Close modal on backdrop tap
+$('sigModal').addEventListener('click', e=>{
+  if(e.target===$('sigModal')) closeSigModal(false);
 });
 
 // Init signature canvases when switching to new report
@@ -1765,29 +1854,8 @@ $('exportPdfBtn').addEventListener('click',exportPdf);
 
 // Init
 renderPhotoGrid();
-// Pre-warm geolocation so it's ready when user opens New Report
+updateSigPreviews();
 if(navigator.geolocation) acquireLocation();
-
-// Init signature canvases — called whenever New Report tab is shown
-function initSignatureCanvases(){
-  initCanvas('sigTechCanvas');
-  initCanvas('sigCustCanvas');
-  const today=new Date().toLocaleDateString();
-  // Re-query after cloneNode replaced the elements
-  const td=$('sigTechDate'), cd=$('sigCustDate');
-  if(td) td.textContent='Date: '+today;
-  if(cd) cd.textContent='Date: '+today;
-}
-
-// Patch switchPage to init canvases whenever New Report is shown
-const _baseSwitchPage=switchPage;
-window.switchPage=function(name){
-  _baseSwitchPage(name);
-  if(name==='NewReport'){
-    // Use requestAnimationFrame to ensure DOM is rendered before we attach canvas events
-    requestAnimationFrame(()=>requestAnimationFrame(()=>initSignatureCanvases()));
-  }
-};
 </script>
 </body>
 </html>
