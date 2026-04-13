@@ -311,7 +311,42 @@ input[type="file"]{display:none}
 
     <!-- Charts — admin only -->
     <div id="chartsSection" style="display:none;margin-top:24px">
-      <div style="font-size:13px;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">📊 Analytics</div>
+      <!-- Analytics header with controls -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div style="font-size:13px;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em">📊 Analytics</div>
+        <!-- Chart type toggle -->
+        <div style="display:flex;gap:6px;align-items:center">
+          <button id="chartTypeBar" class="btn btn-sm" style="padding:6px 14px;margin-top:0;background:var(--brand);color:#fff;border:none;border-radius:6px;font-size:12px;font-family:var(--mono)">
+            ▬ Bar
+          </button>
+          <button id="chartTypeLine" class="btn btn-ghost btn-sm" style="padding:6px 14px;margin-top:0;font-size:12px;font-family:var(--mono)">
+            ∿ Line
+          </button>
+        </div>
+      </div>
+
+      <!-- Date filter for charts -->
+      <div class="form-card" style="margin-bottom:14px;padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:12px;font-family:var(--mono);color:var(--text-muted);white-space:nowrap">📅 Filter Charts:</span>
+          <div style="display:flex;gap:8px;flex:1;flex-wrap:wrap;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:120px">
+              <label style="margin:0;font-size:11px;white-space:nowrap">From</label>
+              <input type="date" id="chartDateFrom" style="flex:1;padding:7px 10px;font-size:13px"/>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:120px">
+              <label style="margin:0;font-size:11px;white-space:nowrap">To</label>
+              <input type="date" id="chartDateTo" style="flex:1;padding:7px 10px;font-size:13px"/>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-primary btn-sm" id="chartFilterApply" style="margin-top:0;padding:8px 14px">Apply</button>
+            <button class="btn btn-ghost btn-sm" id="chartFilterClear" style="margin-top:0;padding:8px 14px">Clear</button>
+          </div>
+        </div>
+        <div id="chartFilterLabel" style="font-size:11px;font-family:var(--mono);color:var(--text-muted);margin-top:8px"></div>
+      </div>
+
       <div class="form-card" style="margin-bottom:14px">
         <h3>Reports by User</h3>
         <canvas id="chartUser" height="180"></canvas>
@@ -969,37 +1004,109 @@ function updateBranchStateConfig(){
 
 // ── Charts ──────────────────────────────────
 const CHART_COLORS=['#2ecc71','#f4b942','#4ecdc4','#ff5555','#a29bfe','#fd79a8','#fdcb6e','#0984e3','#00b894','#e17055'];
+let currentChartType = 'bar'; // 'bar' or 'line'
 
 function destroyChart(id){ if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id];} }
 
-function buildChart(id,labels,data,label){
+function buildChart(id, labels, data, label){
   destroyChart(id);
   const canvas=$(id); if(!canvas||typeof Chart==='undefined') return;
   const dark=!document.body.classList.contains('light-mode');
-  const tc=dark?'#7b82a0':'#6b7280', gc=dark?'rgba(46,51,80,.5)':'rgba(200,205,220,.5)';
+  const tc=dark?'#7b82a0':'#6b7280';
+  const gc=dark?'rgba(46,51,80,.5)':'rgba(200,205,220,.5)';
+  const isLine=currentChartType==='line';
+  const colors=CHART_COLORS.slice(0,Math.max(labels.length,1));
+
   chartInstances[id]=new Chart(canvas,{
-    type:'bar',
-    data:{labels,datasets:[{label,data,backgroundColor:CHART_COLORS.slice(0,labels.length).map(c=>c+'cc'),borderColor:CHART_COLORS.slice(0,labels.length),borderWidth:2,borderRadius:6}]},
-    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} report${ctx.parsed.y!==1?'s':''}`}}},
-      scales:{x:{ticks:{color:tc,font:{size:11}},grid:{color:gc}},y:{ticks:{color:tc,stepSize:1,font:{size:11}},grid:{color:gc},beginAtZero:true}}}
+    type:currentChartType,
+    data:{
+      labels,
+      datasets:[{
+        label,
+        data,
+        backgroundColor: isLine ? colors[0]+'33' : colors.map(c=>c+'cc'),
+        borderColor:     isLine ? colors[0]       : colors,
+        borderWidth: 2,
+        borderRadius: isLine?0:6,
+        fill: isLine,
+        tension: 0.4,
+        pointBackgroundColor: isLine ? colors[0] : undefined,
+        pointRadius: isLine ? 5 : undefined,
+        pointHoverRadius: isLine ? 7 : undefined,
+      }]
+    },
+    options:{
+      responsive:true,
+      animation:{duration:400},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} report${ctx.parsed.y!==1?'s':''}`}}
+      },
+      scales:{
+        x:{ticks:{color:tc,font:{size:11},maxRotation:35},grid:{color:gc}},
+        y:{ticks:{color:tc,stepSize:1,font:{size:11}},grid:{color:gc},beginAtZero:true}
+      }
+    }
+  });
+}
+
+function getChartFilteredReports(){
+  const from=$('chartDateFrom')?.value||'';
+  const to=$('chartDateTo')?.value||'';
+  if(!from&&!to) return reports;
+  return reports.filter(r=>{
+    if(from && r.date<from) return false;
+    if(to   && r.date>to)   return false;
+    return true;
   });
 }
 
 function renderCharts(){
   if(currentRole!=='admin'){$('chartsSection').style.display='none';return;}
   $('chartsSection').style.display='block';
+
+  const data=getChartFilteredReports();
+
+  // Update filter label
+  const from=$('chartDateFrom')?.value||'';
+  const to=$('chartDateTo')?.value||'';
+  const lbl=$('chartFilterLabel');
+  if(lbl){
+    if(from||to) lbl.textContent=`Showing ${data.length} report${data.length!==1?'s':''} · ${from||'start'} → ${to||'today'}`;
+    else         lbl.textContent=`Showing all ${data.length} report${data.length!==1?'s':''}`;
+  }
+
   const byUser={}, byBranch={}, byState={};
-  reports.forEach(r=>{
+  data.forEach(r=>{
     const u=r.userEmail||'Unknown';
     byUser[u]=(byUser[u]||0)+1;
     const b=r.branch||'Unspecified'; byBranch[b]=(byBranch[b]||0)+1;
     const s=r.state||'Unspecified';  byState[s]=(byState[s]||0)+1;
   });
+
   const sort=obj=>Object.entries(obj).sort((a,b)=>b[1]-a[1]);
   const ue=sort(byUser), be=sort(byBranch), se=sort(byState);
+
   buildChart('chartUser',   ue.map(e=>e[0]), ue.map(e=>e[1]), 'Reports');
   buildChart('chartBranch', be.map(e=>e[0]), be.map(e=>e[1]), 'Reports');
   buildChart('chartState',  se.map(e=>e[0]), se.map(e=>e[1]), 'Reports');
+}
+
+function setChartType(type){
+  currentChartType=type;
+  // Update button styles
+  const barBtn=$('chartTypeBar'), lineBtn=$('chartTypeLine');
+  if(barBtn){
+    barBtn.style.background = type==='bar'?'var(--brand)':'transparent';
+    barBtn.style.color      = type==='bar'?'#fff':'var(--text-muted)';
+    barBtn.style.border     = type==='bar'?'none':'1px solid var(--border)';
+  }
+  if(lineBtn){
+    lineBtn.style.background = type==='line'?'var(--brand)':'transparent';
+    lineBtn.style.color      = type==='line'?'#fff':'var(--text-muted)';
+    lineBtn.style.border     = type==='line'?'none':'1px solid var(--border)';
+  }
+  renderCharts();
 }
 
 // ── Job Number Prefix ──────────────────────
@@ -2188,6 +2295,16 @@ $('dynamicFields').addEventListener('click',e=>{
   if(addBtn){$('qinput_'+addBtn.dataset.addqid)?.click();return;}
   const rm=e.target.closest('.remove-photo[data-qid]');
   if(rm){questionPhotos[rm.dataset.qid].splice(+rm.dataset.idx,1);renderQPhotoGrid(rm.dataset.qid);}
+});
+
+// Chart controls
+$('chartTypeBar')?.addEventListener('click',  ()=>setChartType('bar'));
+$('chartTypeLine')?.addEventListener('click', ()=>setChartType('line'));
+$('chartFilterApply')?.addEventListener('click', renderCharts);
+$('chartFilterClear')?.addEventListener('click', ()=>{
+  const f=$('chartDateFrom'), t=$('chartDateTo');
+  if(f) f.value=''; if(t) t.value='';
+  renderCharts();
 });
 
 // Branch & State config
