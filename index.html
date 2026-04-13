@@ -318,8 +318,11 @@ input[type="file"]{display:none}
         <input type="text" id="reportTitle" readonly style="flex:1;background:var(--surface2);cursor:default;color:var(--text-muted)"/>
       </div>
       <div style="font-size:11px;font-family:var(--mono);color:var(--text-muted);margin-top:4px">Auto-generated from timestamp · <span id="jobNumberPreview" style="color:var(--accent)">—</span></div>
-      <label>Date *</label>
-      <input type="date" id="reportDate"/>
+      <label>Date & Time *</label>
+      <div style="display:flex;gap:8px">
+        <input type="date" id="reportDate" style="flex:1"/>
+        <input type="time" id="reportTime" readonly style="flex:0 0 110px;background:var(--surface2);cursor:default;color:var(--text-muted)"/>
+      </div>
       <label>Status</label>
       <select id="reportStatus">
         <option value="pending">Pending</option>
@@ -535,6 +538,10 @@ input[type="file"]{display:none}
     <button class="btn btn-ghost btn-sm" id="closeDetailBtn">← Back</button>
     <span id="detailTitle" style="font-weight:600;font-size:15px;margin-left:4px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <div class="detail-topbar-actions">
+      <button class="btn btn-ghost btn-sm" id="editReportBtn" style="display:none" title="Edit Report">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit
+      </button>
       <button class="btn btn-ghost btn-sm" id="exportPdfBtn" title="Export PDF">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         PDF
@@ -547,7 +554,44 @@ input[type="file"]{display:none}
 <div class="toast" id="toast"></div>
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
 
-<!-- ═══ SIGNATURE MODAL ═══ -->
+<!-- ═══ EDIT REPORT MODAL ═══ -->
+<div id="editModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.6);overflow-y:auto">
+  <div style="min-height:100%;display:flex;align-items:flex-start;justify-content:center;padding:20px">
+    <div style="background:var(--surface);width:100%;max-width:560px;border-radius:16px;padding:24px;box-shadow:0 -8px 32px rgba(0,0,0,.4);animation:fadeUp .25s ease">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div style="font-weight:700;font-size:17px">✏️ Edit Report</div>
+        <button id="editModalClose" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text-muted);cursor:pointer;font-size:13px">✕</button>
+      </div>
+
+      <label>Job Number</label>
+      <input type="text" id="editJobNo" readonly style="background:var(--surface2);color:var(--text-muted);cursor:default"/>
+
+      <label>Date *</label>
+      <div style="display:flex;gap:8px">
+        <input type="date" id="editDate" style="flex:1"/>
+        <input type="time" id="editTime" style="flex:0 0 110px"/>
+      </div>
+
+      <label>Status</label>
+      <select id="editStatus">
+        <option value="pending">Pending</option>
+        <option value="ongoing">On-Going</option>
+        <option value="resolved">Resolved</option>
+        <option value="postponed">Postponed</option>
+      </select>
+
+      <div id="editDynamicFields" style="margin-top:4px"></div>
+
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button class="btn btn-ghost flex-1" id="editModalCancelBtn" style="margin-top:0">Cancel</button>
+        <button class="btn btn-primary flex-1" id="editModalSaveBtn" style="margin-top:0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><polyline points="20 6 9 17 4 12"/></svg>
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="sigModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center;animation:fadeIn .2s ease">
   <div id="sigModalBox" style="background:var(--surface);width:100%;max-width:600px;border-radius:18px 18px 0 0;padding:20px;box-shadow:0 -8px 32px rgba(0,0,0,.4)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
@@ -951,7 +995,11 @@ async function saveQuestion(){
 // ── Dynamic Form ────────────────────────────
 function renderDynamicFields(){
   const el=$('dynamicFields');
-  $('reportDate').value=new Date().toISOString().split('T')[0];
+  const now=new Date();
+  $('reportDate').value=now.toISOString().split('T')[0];
+  // Auto-fill current time (readonly)
+  const timeEl=$('reportTime');
+  if(timeEl) timeEl.value=now.toTimeString().slice(0,5);
   questionPhotos={};
   if(!questions.length){el.innerHTML='<p class="text-muted">No questions configured. Go to Configure tab.</p>';return;}
   el.innerHTML=questions.map(q=>{
@@ -1090,6 +1138,7 @@ async function submitReport(){
   const suffix=$('reportTitle').value.trim();
   const fullJobNo=jobPrefix+suffix;
   const date=$('reportDate').value;
+  const time=$('reportTime')?.value||new Date().toTimeString().slice(0,5);
   const status=$('reportStatus').value;
   // job number is auto-generated — always present
   if(!suffix){ const ts=generateTimestampJobNo(); $('reportTitle').value=ts; }
@@ -1125,7 +1174,7 @@ async function submitReport(){
 
   const totalPhotoCount=compGen.length+Object.values(compQ).reduce((s,a)=>s+a.length,0);
   const report={
-    title:fullJobNo, jobSuffix:suffix, jobPrefix, date, status,
+    title:fullJobNo, jobSuffix:suffix, jobPrefix, date, time, status,
     fields:fieldData, photoCount:compGen.length, totalPhotoCount,
     userId:currentUser.uid, userEmail:currentUser.email,
     createdAt:serverTimestamp(), createdAtMs:Date.now(),
@@ -1149,6 +1198,7 @@ async function submitReport(){
 function clearForm(){
   $('reportTitle').value='';
   $('reportDate').value=new Date().toISOString().split('T')[0];
+  const timeEl=$('reportTime'); if(timeEl) timeEl.value=new Date().toTimeString().slice(0,5);
   $('reportStatus').value='pending';
   capturedPhotos=[];questionPhotos={};
   renderPhotoGrid();renderDynamicFields();
@@ -1517,14 +1567,22 @@ async function openDetail(id){
   currentDetailId=id;
   $('detailTitle').textContent=r.title;
   $('detailOverlay').classList.add('open');
+
+  // Show Edit button only to the report creator
+  const editBtn=$('editReportBtn');
+  if(editBtn) editBtn.style.display=(r.userId===currentUser?.uid)?'inline-flex':'none';
+
   const fields=r.fields||{};
   const rows=Object.entries(fields).map(([qid,f])=>{
     if(f.type==='photo')
       return `<div class="detail-field" id="dqp_${qid}"><div class="detail-field-label">📸 ${esc(f.label)}</div><div class="text-muted">${f.photoCount>0?'Loading '+f.photoCount+' photo(s)…':'No photos'}</div></div>`;
     return `<div class="detail-field"><div class="detail-field-label">${esc(f.label)}</div><div class="detail-field-value">${f.type==='checkbox'?(f.value?'✅ Yes':'☐ No'):esc(String(f.value||'—'))}</div></div>`;
   }).join('');
+
+  const dateTimeStr = r.date + (r.time ? ' · ' + r.time : '');
+
   $('detailContent').innerHTML=`
-    <div class="detail-field"><div class="detail-field-label">Date</div><div class="detail-field-value">${r.date}</div></div>
+    <div class="detail-field"><div class="detail-field-label">Date & Time</div><div class="detail-field-value">${esc(dateTimeStr)}</div></div>
     <div class="detail-field"><div class="detail-field-label">Status</div><div class="detail-field-value"><span class="badge badge-${r.status}">${r.status}</span></div></div>
     <div class="detail-field"><div class="detail-field-label">Submitted by</div><div class="detail-field-value">${esc(r.userEmail||'')}</div></div>
     ${r.geo?`<div class="detail-field"><div class="detail-field-label">📍 Location</div><div class="detail-geo">${r.geo.address?`<div class="detail-geo-address">${esc(r.geo.address)}</div>`:''}<div class="detail-geo-coords">${r.geo.lat.toFixed(6)}°, ${r.geo.lng.toFixed(6)}° · ±${r.geo.accuracy}m</div><a class="geo-map-link" href="https://www.google.com/maps?q=${r.geo.lat},${r.geo.lng}" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> View on Google Maps</a></div></div>`:''}
@@ -1552,6 +1610,85 @@ async function openDetail(id){
       document.querySelectorAll('[id^="dqp_"]').forEach(el=>{const m=el.querySelector('.text-muted');if(m)m.textContent='No photos';});
     }catch(e){console.error('Photo load error',e);}
   }
+}
+
+// ── Edit Report ──────────────────────────────
+function openEditModal(){
+  const r=reports.find(x=>x.id===currentDetailId)||filteredReports.find(x=>x.id===currentDetailId);
+  if(!r) return;
+  // Security check — only creator can edit
+  if(r.userId!==currentUser?.uid){ showToast('You can only edit your own reports','error'); return; }
+
+  $('editJobNo').value = r.title;
+  $('editDate').value  = r.date||'';
+  $('editTime').value  = r.time||'';
+  $('editStatus').value= r.status||'pending';
+
+  // Build editable dynamic fields
+  const fields = r.fields||{};
+  const el = $('editDynamicFields');
+  el.innerHTML = Object.entries(fields).map(([qid,f])=>{
+    if(f.type==='photo') return `<div style="margin-bottom:14px"><label>${esc(f.label)}</label><div class="text-muted" style="padding:10px 0">📸 Photo fields cannot be edited here (${f.photoCount} photo(s))</div></div>`;
+    if(f.type==='checkbox') return `<div style="margin-bottom:14px"><label>${esc(f.label)}</label><label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer"><input type="checkbox" data-editqid="${qid}" ${f.value?'checked':''} style="width:auto;accent-color:var(--accent)"/><span>Yes</span></label></div>`;
+    if(f.type==='textarea') return `<div style="margin-bottom:14px"><label>${esc(f.label)}</label><textarea data-editqid="${qid}">${esc(String(f.value||''))}</textarea></div>`;
+    if(f.type==='select'){
+      const opts=(f.options||[]).map(o=>`<option value="${esc(o)}"${f.value===o?' selected':''}>${esc(o)}</option>`).join('');
+      // Also look up options from current questions config
+      const qDef=questions.find(q=>q.id===qid);
+      const allOpts=(qDef?.options||[]).map(o=>`<option value="${esc(o)}"${f.value===o?' selected':''}>${esc(o)}</option>`).join('');
+      return `<div style="margin-bottom:14px"><label>${esc(f.label)}</label><select data-editqid="${qid}">${allOpts||opts}</select></div>`;
+    }
+    return `<div style="margin-bottom:14px"><label>${esc(f.label)}</label><input type="${f.type==='number'?'number':f.type==='date'?'date':'text'}" data-editqid="${qid}" value="${esc(String(f.value||''))}"/></div>`;
+  }).join('');
+
+  $('editModal').style.display='block';
+  document.body.style.overflow='hidden';
+}
+
+async function saveEdit(){
+  const r=reports.find(x=>x.id===currentDetailId)||filteredReports.find(x=>x.id===currentDetailId);
+  if(!r||r.userId!==currentUser?.uid){ showToast('Unauthorised','error'); return; }
+
+  const newDate  = $('editDate').value;
+  const newTime  = $('editTime').value;
+  const newStatus= $('editStatus').value;
+  if(!newDate){ showToast('Date is required','error'); return; }
+
+  // Collect updated field values
+  const updatedFields = {...(r.fields||{})};
+  $('editDynamicFields').querySelectorAll('[data-editqid]').forEach(inp=>{
+    const qid = inp.dataset.editqid;
+    if(!updatedFields[qid]) return;
+    updatedFields[qid] = {
+      ...updatedFields[qid],
+      value: inp.type==='checkbox' ? inp.checked : inp.value
+    };
+  });
+
+  setLoading(true);
+  try{
+    await setDoc(doc(db,'reports',currentDetailId),{
+      date:newDate, time:newTime, status:newStatus,
+      fields:updatedFields, updatedAt:serverTimestamp()
+    },{merge:true});
+
+    // Update local cache
+    const idx = reports.findIndex(x=>x.id===currentDetailId);
+    if(idx>-1) reports[idx]={...reports[idx], date:newDate, time:newTime, status:newStatus, fields:updatedFields};
+    const fidx = filteredReports.findIndex(x=>x.id===currentDetailId);
+    if(fidx>-1) filteredReports[fidx]={...filteredReports[fidx], date:newDate, time:newTime, status:newStatus, fields:updatedFields};
+
+    closeEditModal();
+    showToast('Report updated ✓','success');
+    openDetail(currentDetailId); // refresh detail view
+    renderReports(); // refresh dashboard list
+  }catch(e){ showToast('Save failed: '+e.message,'error'); }
+  setLoading(false);
+}
+
+function closeEditModal(){
+  $('editModal').style.display='none';
+  document.body.style.overflow='';
 }
 
 // ── PDF Export ──────────────────────────────
@@ -1593,7 +1730,7 @@ async function exportPdf(){
 
     // Date | Status | Submitted by
     pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.setTextColor(80,80,100);
-    pdf.text(`Date: ${r.date}   |   Status: ${r.status.toUpperCase()}   |   Submitted by: ${r.userEmail||''}`,margin,y);
+    pdf.text(`Date: ${r.date}${r.time?' '+r.time:''}   |   Status: ${r.status.toUpperCase()}   |   Submitted by: ${r.userEmail||''}`,margin,y);
     y+=6;
 
     pdf.setDrawColor(200,230,210);pdf.setLineWidth(0.4);
@@ -1885,6 +2022,13 @@ $('geoClearBtn').addEventListener('click', clearGeo);
 // Detail
 $('closeDetailBtn').addEventListener('click',()=>$('detailOverlay').classList.remove('open'));
 $('exportPdfBtn').addEventListener('click',exportPdf);
+$('editReportBtn').addEventListener('click',openEditModal);
+
+// Edit modal
+$('editModalClose').addEventListener('click',closeEditModal);
+$('editModalCancelBtn').addEventListener('click',closeEditModal);
+$('editModalSaveBtn').addEventListener('click',saveEdit);
+$('editModal').addEventListener('click',e=>{ if(e.target===$('editModal')) closeEditModal(); });
 
 // Init
 renderPhotoGrid();
