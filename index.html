@@ -10,6 +10,8 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <!-- jsPDF for PDF export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Chart.js for analytics -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
 <style>
 /* ── THEME VARIABLES ── */
@@ -306,6 +308,23 @@ input[type="file"]{display:none}
       </div>
     </div>
     <div id="reportsList"><div class="spinner"></div></div>
+
+    <!-- Charts — admin only -->
+    <div id="chartsSection" style="display:none;margin-top:24px">
+      <div style="font-size:13px;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">📊 Analytics</div>
+      <div class="form-card" style="margin-bottom:14px">
+        <h3>Reports by User</h3>
+        <canvas id="chartUser" height="180"></canvas>
+      </div>
+      <div class="form-card" style="margin-bottom:14px">
+        <h3>Reports by Branch</h3>
+        <canvas id="chartBranch" height="180"></canvas>
+      </div>
+      <div class="form-card" style="margin-bottom:14px">
+        <h3>Reports by State</h3>
+        <canvas id="chartState" height="180"></canvas>
+      </div>
+    </div>
   </div>
 
   <!-- ── New Report ── -->
@@ -318,6 +337,16 @@ input[type="file"]{display:none}
         <input type="text" id="reportTitle" readonly style="flex:1;background:var(--surface2);cursor:default;color:var(--text-muted)"/>
       </div>
       <div style="font-size:11px;font-family:var(--mono);color:var(--text-muted);margin-top:4px">Auto-generated from timestamp · <span id="jobNumberPreview" style="color:var(--accent)">—</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px">
+        <div>
+          <label style="margin-top:0">Branch *</label>
+          <select id="reportBranch"><option value="">Select Branch…</option></select>
+        </div>
+        <div>
+          <label style="margin-top:0">State *</label>
+          <select id="reportState"><option value="">Select State…</option></select>
+        </div>
+      </div>
       <label>Date & Time *</label>
       <div style="display:flex;gap:8px">
         <input type="date" id="reportDate" style="flex:1"/>
@@ -421,6 +450,16 @@ input[type="file"]{display:none}
           <option value="">All Users</option>
         </select>
       </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <div>
+          <label style="margin-top:0">Branch</label>
+          <select id="filterBranch"><option value="">All Branches</option></select>
+        </div>
+        <div>
+          <label style="margin-top:0">State</label>
+          <select id="filterState"><option value="">All States</option></select>
+        </div>
+      </div>
       <div style="margin-top:10px">
         <label>Status</label>
         <select id="filterStatus">
@@ -467,13 +506,28 @@ input[type="file"]{display:none}
       <div style="margin-top:10px;font-size:12px;font-family:var(--mono);color:var(--text-muted)">Preview: <span id="prefixPreview" style="color:var(--accent)">—</span></div>
     </div>
     <div class="form-card">
+      <h3>🏢 Branch & State Options</h3>
+      <p class="text-muted">Configure the dropdown options for Branch and State fields.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px">
+        <div>
+          <label style="margin-top:0">Branch Options</label>
+          <textarea id="branchOptions" placeholder="One per line&#10;e.g.&#10;Ipoh&#10;KL&#10;Penang" style="min-height:120px;font-family:var(--mono);font-size:13px"></textarea>
+        </div>
+        <div>
+          <label style="margin-top:0">State Options</label>
+          <textarea id="stateOptions" placeholder="One per line&#10;e.g.&#10;Perak&#10;Selangor&#10;Penang" style="min-height:120px;font-family:var(--mono);font-size:13px"></textarea>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="saveBranchStateBtn" style="width:100%;margin-top:12px">Save Branch & State Options</button>
+    </div>
+    <div class="form-card">
       <h3>⚙️ Report Questions</h3>
       <p class="text-muted">Configure and reorder questions shown in every field report. Use ▲ ▼ to rearrange.</p>
       <div id="questionsList" style="margin-top:16px"></div>
       <button class="btn btn-ghost btn-sm" id="addQBtn" style="width:100%;margin-top:12px">+ Add Question</button>
     </div>
     <div id="addQuestionForm" class="add-question-form" style="display:none">
-      <h3 style="font-size:13px;font-family:var(--mono);color:var(--accent2);margin-bottom:14px;text-transform:uppercase;letter-spacing:.08em">New Question</h3>
+      <h3 id="addQFormTitle" style="font-size:13px;font-family:var(--mono);color:var(--accent2);margin-bottom:14px;text-transform:uppercase;letter-spacing:.08em">New Question</h3>
       <label>Question Label *</label>
       <input type="text" id="newQLabel" placeholder="e.g. Equipment Serial Number"/>
       <label>Field Type</label>
@@ -565,6 +619,17 @@ input[type="file"]{display:none}
 
       <label>Job Number</label>
       <input type="text" id="editJobNo" readonly style="background:var(--surface2);color:var(--text-muted);cursor:default"/>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px">
+        <div>
+          <label style="margin-top:0">Branch</label>
+          <select id="editBranch"><option value="">Select Branch…</option></select>
+        </div>
+        <div>
+          <label style="margin-top:0">State</label>
+          <select id="editState"><option value="">Select State…</option></select>
+        </div>
+      </div>
 
       <label>Date *</label>
       <div style="display:flex;gap:8px">
@@ -660,7 +725,10 @@ let currentDetailId= null;
 let isDark         = true;
 let geoLocation    = null;
 let currentRole    = 'user';
-let jobPrefix      = '';   // configurable job number prefix
+let jobPrefix      = '';
+let branchOptions  = [];   // configurable branch list
+let stateOptions   = [];   // configurable state list
+let chartInstances = {};   // Chart.js instances keyed by canvas id
 
 // ── Helpers ────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -687,7 +755,7 @@ function switchPage(name){
     if(inp) inp.value=generateTimestampJobNo();
     updateJobNumberPreview();
   }  if(name==='Reports') renderFilteredReports();
-  if(name==='Admin' && currentRole==='admin'){ loadUsersList(); updateJobPrefixUI(); }
+  if(name==='Admin' && currentRole==='admin'){ loadUsersList(); updateJobPrefixUI(); updateBranchStateConfig(); }
 }
 
 // ── Theme Toggle ───────────────────────────
@@ -766,6 +834,7 @@ onAuthStateChanged(auth,async user=>{
     loadQuestions();
     loadReports();
     loadJobPrefix();
+    loadBranchState();
     if(firebaseConfig.apiKey==='YOUR_API_KEY') $('configNotice').style.display='block';
   }else{
     currentUser=null;
@@ -794,6 +863,9 @@ function applyRoleUI(){
 
   // Load users list if admin
   if(isAdmin) loadUsersList();
+  // Charts visible for admin only
+  const cs=$('chartsSection');
+  if(cs) cs.style.display=isAdmin?'block':'none';
 }
 
 // ── Users Management ────────────────────────
@@ -853,6 +925,83 @@ async function updateUserRole(uid, role){
   }
 }
 window._updateRole = updateUserRole;
+
+// ── Branch & State Config ───────────────────
+async function loadBranchState(){
+  try{
+    const snap=await getDoc(doc(db,'config','branchState'));
+    if(snap.exists()){ branchOptions=snap.data().branches||[]; stateOptions=snap.data().states||[]; }
+  }catch{
+    branchOptions=localStorage.getItem('fsa_branches')?.split('\n').filter(Boolean)||[];
+    stateOptions=localStorage.getItem('fsa_states')?.split('\n').filter(Boolean)||[];
+  }
+  populateBranchStateDropdowns();
+  updateBranchStateConfig();
+}
+
+async function saveBranchState(){
+  const branches=($('branchOptions')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const states=($('stateOptions')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  branchOptions=branches; stateOptions=states;
+  localStorage.setItem('fsa_branches',branches.join('\n'));
+  localStorage.setItem('fsa_states',states.join('\n'));
+  try{ await setDoc(doc(db,'config','branchState'),{branches,states},{merge:true}); }catch{}
+  populateBranchStateDropdowns();
+  showToast('Branch & State options saved ✓','success');
+}
+
+function populateBranchStateDropdowns(){
+  // New report form
+  const bSel=$('reportBranch'), sSel=$('reportState');
+  if(bSel){ const v=bSel.value; bSel.innerHTML='<option value="">Select Branch…</option>'+branchOptions.map(b=>`<option value="${esc(b)}"${v===b?' selected':''}>${esc(b)}</option>`).join(''); }
+  if(sSel){ const v=sSel.value; sSel.innerHTML='<option value="">Select State…</option>'+stateOptions.map(s=>`<option value="${esc(s)}"${v===s?' selected':''}>${esc(s)}</option>`).join(''); }
+  // Filter page
+  const fb=$('filterBranch'), fs=$('filterState');
+  if(fb){ const v=fb.value; fb.innerHTML='<option value="">All Branches</option>'+branchOptions.map(b=>`<option value="${esc(b)}"${v===b?' selected':''}>${esc(b)}</option>`).join(''); }
+  if(fs){ const v=fs.value; fs.innerHTML='<option value="">All States</option>'+stateOptions.map(s=>`<option value="${esc(s)}"${v===s?' selected':''}>${esc(s)}</option>`).join(''); }
+}
+
+function updateBranchStateConfig(){
+  const bEl=$('branchOptions'), sEl=$('stateOptions');
+  if(bEl) bEl.value=branchOptions.join('\n');
+  if(sEl) sEl.value=stateOptions.join('\n');
+}
+
+// ── Charts ──────────────────────────────────
+const CHART_COLORS=['#2ecc71','#f4b942','#4ecdc4','#ff5555','#a29bfe','#fd79a8','#fdcb6e','#0984e3','#00b894','#e17055'];
+const chartInstances={};
+
+function destroyChart(id){ if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id];} }
+
+function buildChart(id,labels,data,label){
+  destroyChart(id);
+  const canvas=$(id); if(!canvas||typeof Chart==='undefined') return;
+  const dark=!document.body.classList.contains('light-mode');
+  const tc=dark?'#7b82a0':'#6b7280', gc=dark?'rgba(46,51,80,.5)':'rgba(200,205,220,.5)';
+  chartInstances[id]=new Chart(canvas,{
+    type:'bar',
+    data:{labels,datasets:[{label,data,backgroundColor:CHART_COLORS.slice(0,labels.length).map(c=>c+'cc'),borderColor:CHART_COLORS.slice(0,labels.length),borderWidth:2,borderRadius:6}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} report${ctx.parsed.y!==1?'s':''}`}}},
+      scales:{x:{ticks:{color:tc,font:{size:11}},grid:{color:gc}},y:{ticks:{color:tc,stepSize:1,font:{size:11}},grid:{color:gc},beginAtZero:true}}}
+  });
+}
+
+function renderCharts(){
+  if(currentRole!=='admin'){$('chartsSection').style.display='none';return;}
+  $('chartsSection').style.display='block';
+  const byUser={}, byBranch={}, byState={};
+  reports.forEach(r=>{
+    const u=(r.userEmail||'Unknown').split('@')[0];
+    byUser[u]=(byUser[u]||0)+1;
+    const b=r.branch||'Unspecified'; byBranch[b]=(byBranch[b]||0)+1;
+    const s=r.state||'Unspecified';  byState[s]=(byState[s]||0)+1;
+  });
+  const sort=obj=>Object.entries(obj).sort((a,b)=>b[1]-a[1]);
+  const ue=sort(byUser), be=sort(byBranch), se=sort(byState);
+  buildChart('chartUser',   ue.map(e=>e[0]), ue.map(e=>e[1]), 'Reports');
+  buildChart('chartBranch', be.map(e=>e[0]), be.map(e=>e[1]), 'Reports');
+  buildChart('chartState',  se.map(e=>e[0]), se.map(e=>e[1]), 'Reports');
+}
 
 // ── Job Number Prefix ──────────────────────
 async function loadJobPrefix(){
@@ -926,6 +1075,8 @@ async function loadQuestions(){
 
 const ICONS={text:'📝',textarea:'📄',number:'🔢',select:'📋',checkbox:'☑️',date:'📅',photo:'📸'};
 
+let editingQuestionIdx = -1; // -1 = adding new, >=0 = editing existing
+
 function renderQuestionsList(){
   const el=$('questionsList');
   if(!questions.length){el.innerHTML='<p class="text-muted" style="text-align:center;padding:20px 0">No questions yet. Add one below.</p>';return;}
@@ -939,7 +1090,10 @@ function renderQuestionsList(){
         <div class="question-item-label">${ICONS[q.type]||'📝'} ${esc(q.label)}${q.required?' <span style="color:var(--accent)">*</span>':''}</div>
         <div class="question-item-type">${q.type}${q.options?' · '+q.options.join(', '):''}</div>
       </div>
-      <button class="btn btn-danger btn-sm" data-delidx="${i}" data-delid="${esc(q.id)}">✕</button>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-ghost btn-sm" data-editidx="${i}" title="Edit question" style="padding:6px 10px">✏️</button>
+        <button class="btn btn-danger btn-sm" data-delidx="${i}" data-delid="${esc(q.id)}">✕</button>
+      </div>
     </div>`).join('');
 }
 
@@ -963,32 +1117,88 @@ async function deleteQuestion(id,idx){
   showToast('Question removed','success');
 }
 
-function toggleAddQuestion(show){
-  $('addQuestionForm').style.display=show?'block':'none';
+function toggleAddQuestion(show, editIdx=-1){
+  const form=$('addQuestionForm');
+  form.style.display=show?'block':'none';
   if(show){
-    $('newQLabel').value='';$('newQOptions').value='';$('newQRequired').checked=false;
-    selectedType='text';
-    document.querySelectorAll('.type-option').forEach(o=>o.classList.remove('selected'));
-    document.querySelector('[data-type="text"]').classList.add('selected');
-    $('selectOptionsArea').style.display='none';
+    editingQuestionIdx=editIdx;
+    if(editIdx>=0){
+      // Pre-fill with existing question values
+      const q=questions[editIdx];
+      $('newQLabel').value=q.label||'';
+      $('newQOptions').value=(q.options||[]).join(', ');
+      $('newQRequired').checked=!!q.required;
+      selectedType=q.type||'text';
+      document.querySelectorAll('.type-option').forEach(o=>o.classList.remove('selected'));
+      const typeEl=document.querySelector(`[data-type="${selectedType}"]`);
+      if(typeEl) typeEl.classList.add('selected');
+      $('selectOptionsArea').style.display=selectedType==='select'?'block':'none';
+      // Update form heading and button
+      $('addQFormTitle').textContent='Edit Question';
+      $('saveQBtn').textContent='Update Question';
+    } else {
+      // Reset for new question
+      $('newQLabel').value='';$('newQOptions').value='';$('newQRequired').checked=false;
+      selectedType='text';
+      document.querySelectorAll('.type-option').forEach(o=>o.classList.remove('selected'));
+      document.querySelector('[data-type="text"]').classList.add('selected');
+      $('selectOptionsArea').style.display='none';
+      $('addQFormTitle').textContent='New Question';
+      $('saveQBtn').textContent='Save Question';
+    }
+    // Scroll form into view
+    setTimeout(()=>form.scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+  } else {
+    editingQuestionIdx=-1;
   }
 }
 
 async function saveQuestion(){
   const label=$('newQLabel').value.trim();
   if(!label){showToast('Please enter a question label','error');return;}
-  const q={label,type:selectedType,required:$('newQRequired').checked,order:questions.length,createdAt:Date.now()};
+
+  const isEdit = editingQuestionIdx>=0;
+  const existing = isEdit ? questions[editingQuestionIdx] : null;
+
+  const q={
+    label,
+    type:selectedType,
+    required:$('newQRequired').checked,
+    order: isEdit ? existing.order : questions.length,
+    ...(isEdit ? {id:existing.id} : {createdAt:Date.now()})
+  };
+
   if(selectedType==='select'){
     q.options=$('newQOptions').value.split(',').map(o=>o.trim()).filter(Boolean);
     if(!q.options.length){showToast('Add at least one option','error');return;}
   }
+
   setLoading(true);
-  try{const r=await addDoc(collection(db,'questions'),q);q.id=r.id;}
-  catch{q.id='local_'+Date.now();}
-  questions.push(q);
+  try{
+    if(isEdit){
+      // Update existing Firestore doc
+      await setDoc(doc(db,'questions',existing.id),{
+        label:q.label, type:q.type, required:q.required,
+        ...(q.options?{options:q.options}:{options:[]})
+      },{merge:true});
+      questions[editingQuestionIdx]={...existing,...q};
+      showToast('Question updated ✓','success');
+    } else {
+      // Add new doc
+      const r=await addDoc(collection(db,'questions'),q);
+      q.id=r.id;
+      questions.push(q);
+      showToast('Question saved ✓','success');
+    }
+  }catch{
+    if(!isEdit){
+      q.id='local_'+Date.now();
+      questions.push(q);
+    }
+    showToast(isEdit?'Updated locally':'Saved locally','');
+  }
   renderQuestionsList();
   toggleAddQuestion(false);
-  showToast('Question saved ✓','success');
   setLoading(false);
 }
 
@@ -1135,14 +1345,17 @@ function clearGeo(){
 
 // ── Submit Report ──────────────────────────
 async function submitReport(){
-  const suffix=$('reportTitle').value.trim();
+  const suffix=$('reportTitle').value.trim()||generateTimestampJobNo();
+  if($('reportTitle')) $('reportTitle').value=suffix;
   const fullJobNo=jobPrefix+suffix;
   const date=$('reportDate').value;
   const time=$('reportTime')?.value||new Date().toTimeString().slice(0,5);
   const status=$('reportStatus').value;
-  // job number is auto-generated — always present
-  if(!suffix){ const ts=generateTimestampJobNo(); $('reportTitle').value=ts; }
+  const branch=$('reportBranch')?.value||'';
+  const state=$('reportState')?.value||'';
   if(!date){showToast('Please select a date','error');return;}
+  if(!branch){showToast('Please select a Branch','error');return;}
+  if(!state){showToast('Please select a State','error');return;}
 
   const fieldData={};let valid=true;
   questions.forEach(q=>{
@@ -1174,7 +1387,7 @@ async function submitReport(){
 
   const totalPhotoCount=compGen.length+Object.values(compQ).reduce((s,a)=>s+a.length,0);
   const report={
-    title:fullJobNo, jobSuffix:suffix, jobPrefix, date, time, status,
+    title:fullJobNo, jobSuffix:suffix, jobPrefix, date, time, status, branch, state,
     fields:fieldData, photoCount:compGen.length, totalPhotoCount,
     userId:currentUser.uid, userEmail:currentUser.email,
     createdAt:serverTimestamp(), createdAtMs:Date.now(),
@@ -1200,6 +1413,8 @@ function clearForm(){
   $('reportDate').value=new Date().toISOString().split('T')[0];
   const timeEl=$('reportTime'); if(timeEl) timeEl.value=new Date().toTimeString().slice(0,5);
   $('reportStatus').value='pending';
+  const bSel=$('reportBranch'),sSel=$('reportState');
+  if(bSel) bSel.value=''; if(sSel) sSel.value='';
   capturedPhotos=[];questionPhotos={};
   renderPhotoGrid();renderDynamicFields();
   acquireLocation();
@@ -1432,6 +1647,9 @@ function renderReports(){
   $('statCardTotal').style.borderColor='var(--accent)';
   $('statCardToday').style.borderColor='';
   renderDashList(reports,'All Reports',false);
+  // Refresh charts and filter dropdowns
+  requestAnimationFrame(renderCharts);
+  populateBranchStateDropdowns();
 }
 
 // Render a list of reports on the dashboard
@@ -1449,7 +1667,7 @@ function renderDashList(list, label, showAllBtn){
         <div class="report-card-title">${esc(r.title)}</div>
         <span class="badge badge-${r.status}">${r.status}</span>
       </div>
-      <div class="report-card-sub">📅 ${r.date} · 👤 ${esc(r.userEmail||'')}${r.totalPhotoCount?' · 📸 '+r.totalPhotoCount:''}${r.geo?' · 📍':''}</div>
+      <div class="report-card-sub">📅 ${r.date}${r.time?' '+r.time:''} · 👤 ${esc(r.userEmail||'')}${r.branch?' · 🏢 '+esc(r.branch):''}${r.state?' · 📍 '+esc(r.state):''}${r.totalPhotoCount?' · 📸 '+r.totalPhotoCount:''}</div>
     </div>`).join('');
 }
 
@@ -1475,6 +1693,8 @@ function clearFilter(){
   $('filterDateTo').value='';
   $('filterUser').value='';
   $('filterStatus').value='';
+  const fb=$('filterBranch'), fs=$('filterState');
+  if(fb) fb.value=''; if(fs) fs.value='';
   filteredReports=[...reports];
   renderFilteredReports();
 }
@@ -1483,14 +1703,18 @@ function renderFilteredReports(){
   filteredReports=[...reports];
   const from=$('filterDateFrom').value;
   const to=$('filterDateTo').value;
-  const user=$('filterUser').value;   // exact email from dropdown, or '' for all
+  const user=$('filterUser').value;
   const status=$('filterStatus').value;
-  if(from||to||user||status){
+  const branch=$('filterBranch')?.value||'';
+  const state=$('filterState')?.value||'';
+  if(from||to||user||status||branch||state){
     filteredReports=reports.filter(r=>{
-      if(from && r.date<from) return false;
-      if(to   && r.date>to)   return false;
-      if(user && (r.userEmail||'')!==user) return false;
-      if(status && r.status!==status) return false;
+      if(from   && r.date<from)               return false;
+      if(to     && r.date>to)                 return false;
+      if(user   && (r.userEmail||'')!==user)  return false;
+      if(status && r.status!==status)         return false;
+      if(branch && (r.branch||'')!==branch)   return false;
+      if(state  && (r.state||'')!==state)     return false;
       return true;
     });
   }
@@ -1509,7 +1733,7 @@ function renderFilteredReports(){
         <div class="report-card-title">${esc(r.title)}</div>
         <span class="badge badge-${r.status}">${r.status}</span>
       </div>
-      <div class="report-card-sub">📅 ${r.date} · 👤 ${esc(r.userEmail||'')}${r.totalPhotoCount?' · 📸 '+r.totalPhotoCount:''}</div>
+      <div class="report-card-sub">📅 ${r.date}${r.time?' '+r.time:''} · 👤 ${esc(r.userEmail||'')}${r.branch?' · 🏢 '+esc(r.branch):''}${r.state?' · 📍 '+esc(r.state):''}${r.totalPhotoCount?' · 📸 '+r.totalPhotoCount:''}</div>
     </div>`).join('');
 }
 
@@ -1522,11 +1746,14 @@ function exportCsv(){
   filteredReports.forEach(r=>Object.values(r.fields||{}).forEach(f=>fieldLabels.add(f.label)));
   const fieldLabelArr=[...fieldLabels];
 
-  const headers=['Title','Date','Status','Submitted By','Photos','Latitude','Longitude','Address',...fieldLabelArr];
+  const headers=['Title','Date','Time','Branch','State','Status','Submitted By','Photos','Latitude','Longitude','Address',...fieldLabelArr];
   const rows=filteredReports.map(r=>{
     const base=[
       csvCell(r.title),
       csvCell(r.date),
+      csvCell(r.time||''),
+      csvCell(r.branch||''),
+      csvCell(r.state||''),
       csvCell(r.status),
       csvCell(r.userEmail||''),
       csvCell(r.totalPhotoCount||0),
@@ -1587,6 +1814,8 @@ async function openDetail(id){
 
   $('detailContent').innerHTML=`
     <div class="detail-field"><div class="detail-field-label">Date & Time</div><div class="detail-field-value">${esc(dateTimeStr)}</div></div>
+    ${r.branch?`<div class="detail-field"><div class="detail-field-label">Branch</div><div class="detail-field-value">${esc(r.branch)}</div></div>`:''}
+    ${r.state?`<div class="detail-field"><div class="detail-field-label">State</div><div class="detail-field-value">${esc(r.state)}</div></div>`:''}
     <div class="detail-field"><div class="detail-field-label">Status</div><div class="detail-field-value"><span class="badge badge-${r.status}">${r.status}</span></div></div>
     <div class="detail-field"><div class="detail-field-label">Submitted by</div><div class="detail-field-value">${esc(r.userEmail||'')}</div></div>
     ${r.geo?`<div class="detail-field"><div class="detail-field-label">📍 Location</div><div class="detail-geo">${r.geo.address?`<div class="detail-geo-address">${esc(r.geo.address)}</div>`:''}<div class="detail-geo-coords">${r.geo.lat.toFixed(6)}°, ${r.geo.lng.toFixed(6)}° · ±${r.geo.accuracy}m</div><a class="geo-map-link" href="https://www.google.com/maps?q=${r.geo.lat},${r.geo.lng}" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> View on Google Maps</a></div></div>`:''}
@@ -1630,6 +1859,11 @@ function openEditModal(){
   $('editTime').value  = r.time||'';
   $('editStatus').value= r.status||'pending';
 
+  // Populate branch/state dropdowns and set current values
+  const eb=$('editBranch'), es=$('editState');
+  if(eb){ eb.innerHTML='<option value="">Select Branch…</option>'+branchOptions.map(b=>`<option value="${esc(b)}"${r.branch===b?' selected':''}>${esc(b)}</option>`).join(''); }
+  if(es){ es.innerHTML='<option value="">Select State…</option>'+stateOptions.map(s=>`<option value="${esc(s)}"${r.state===s?' selected':''}>${esc(s)}</option>`).join(''); }
+
   // Build editable dynamic fields
   const fields = r.fields||{};
   const el = $('editDynamicFields');
@@ -1659,6 +1893,8 @@ async function saveEdit(){
   const newDate  = $('editDate').value;
   const newTime  = $('editTime').value;
   const newStatus= $('editStatus').value;
+  const newBranch= $('editBranch')?.value||r.branch||'';
+  const newState = $('editState')?.value||r.state||'';
   if(!newDate){ showToast('Date is required','error'); return; }
 
   // Collect updated field values
@@ -1676,14 +1912,15 @@ async function saveEdit(){
   try{
     await setDoc(doc(db,'reports',currentDetailId),{
       date:newDate, time:newTime, status:newStatus,
+      branch:newBranch, state:newState,
       fields:updatedFields, updatedAt:serverTimestamp()
     },{merge:true});
 
     // Update local cache
     const idx = reports.findIndex(x=>x.id===currentDetailId);
-    if(idx>-1) reports[idx]={...reports[idx], date:newDate, time:newTime, status:newStatus, fields:updatedFields};
+    if(idx>-1) reports[idx]={...reports[idx], date:newDate, time:newTime, status:newStatus, branch:newBranch, state:newState, fields:updatedFields};
     const fidx = filteredReports.findIndex(x=>x.id===currentDetailId);
-    if(fidx>-1) filteredReports[fidx]={...filteredReports[fidx], date:newDate, time:newTime, status:newStatus, fields:updatedFields};
+    if(fidx>-1) filteredReports[fidx]={...filteredReports[fidx], date:newDate, time:newTime, status:newStatus, branch:newBranch, state:newState, fields:updatedFields};
 
     closeEditModal();
     showToast('Report updated ✓','success');
@@ -1738,7 +1975,13 @@ async function exportPdf(){
     // Date | Status | Submitted by
     pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.setTextColor(80,80,100);
     pdf.text(`Date: ${r.date}${r.time?' '+r.time:''}   |   Status: ${r.status.toUpperCase()}   |   Submitted by: ${r.userEmail||''}`,margin,y);
-    y+=6;
+    y+=5;
+    if(r.branch||r.state){
+      pdf.setFontSize(8.5);pdf.setTextColor(60,60,80);
+      pdf.text(`Branch: ${r.branch||'—'}   |   State: ${r.state||'—'}`,margin,y);
+      y+=5;
+    }
+    y+=1;
 
     pdf.setDrawColor(200,230,210);pdf.setLineWidth(0.4);
     pdf.line(margin,y,pageW-margin,y);y+=6;
@@ -1948,8 +2191,9 @@ $('dynamicFields').addEventListener('click',e=>{
   if(rm){questionPhotos[rm.dataset.qid].splice(+rm.dataset.idx,1);renderQPhotoGrid(rm.dataset.qid);}
 });
 
-// Job number is auto-generated — no input listener needed (readonly field)
-// Prefix save
+// Branch & State config
+$('saveBranchStateBtn')?.addEventListener('click', saveBranchState);
+// Job number prefix
 $('savePrefixBtn')?.addEventListener('click', saveJobPrefix);
 // Prefix input preview in configure
 $('jobPrefixInput')?.addEventListener('input', ()=>{
@@ -1958,7 +2202,7 @@ $('jobPrefixInput')?.addEventListener('input', ()=>{
   const prev=$('prefixPreview'); if(prev) prev.textContent=v?(v+'250710-143022'):'(no prefix) 250710-143022';
 });
 
-// Questions reorder (delegated)
+// Questions config — delegated clicks
 $('questionsList').addEventListener('click',e=>{
   const btn=e.target.closest('[data-delidx]');
   if(btn){ deleteQuestion(btn.dataset.delid,+btn.dataset.delidx); return; }
@@ -1966,6 +2210,8 @@ $('questionsList').addEventListener('click',e=>{
   if(up){ moveQuestion(+up.dataset.moveup,-1); return; }
   const down=e.target.closest('[data-movedown]');
   if(down){ moveQuestion(+down.dataset.movedown,1); return; }
+  const edit=e.target.closest('[data-editidx]');
+  if(edit){ toggleAddQuestion(true, +edit.dataset.editidx); return; }
 });
 
 // Signature preview boxes — open modal on tap
@@ -2018,7 +2264,7 @@ $('typeGrid').addEventListener('click',e=>{
   selectedType=opt.dataset.type;
   $('selectOptionsArea').style.display=selectedType==='select'?'block':'none';
 });
-$('addQBtn').addEventListener('click',()=>toggleAddQuestion(true));
+$('addQBtn').addEventListener('click',()=>toggleAddQuestion(true,-1));
 $('cancelQBtn').addEventListener('click',()=>toggleAddQuestion(false));
 $('saveQBtn').addEventListener('click',saveQuestion);
 
