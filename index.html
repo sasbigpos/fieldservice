@@ -1568,9 +1568,13 @@ async function openDetail(id){
   $('detailTitle').textContent=r.title;
   $('detailOverlay').classList.add('open');
 
-  // Show Edit button only to the report creator
+  // Show Edit button: for the report creator, for admins, or for legacy reports without userId
   const editBtn=$('editReportBtn');
-  if(editBtn) editBtn.style.display=(r.userId===currentUser?.uid)?'inline-flex':'none';
+  if(editBtn){
+    const isOwner = !r.userId || r.userId===currentUser?.uid;
+    const isAdmin = currentRole==='admin';
+    editBtn.style.display=(isOwner||isAdmin)?'inline-flex':'none';
+  }
 
   const fields=r.fields||{};
   const rows=Object.entries(fields).map(([qid,f])=>{
@@ -1616,8 +1620,10 @@ async function openDetail(id){
 function openEditModal(){
   const r=reports.find(x=>x.id===currentDetailId)||filteredReports.find(x=>x.id===currentDetailId);
   if(!r) return;
-  // Security check — only creator can edit
-  if(r.userId!==currentUser?.uid){ showToast('You can only edit your own reports','error'); return; }
+  // Security check — only creator or admin can edit
+  const isOwner = !r.userId || r.userId===currentUser?.uid;
+  const isAdm   = currentRole==='admin';
+  if(!isOwner&&!isAdm){ showToast('You can only edit your own reports','error'); return; }
 
   $('editJobNo').value = r.title;
   $('editDate').value  = r.date||'';
@@ -1647,7 +1653,8 @@ function openEditModal(){
 
 async function saveEdit(){
   const r=reports.find(x=>x.id===currentDetailId)||filteredReports.find(x=>x.id===currentDetailId);
-  if(!r||r.userId!==currentUser?.uid){ showToast('Unauthorised','error'); return; }
+  const isOwner2 = !r.userId || r.userId===currentUser?.uid;
+  if(!r||((!isOwner2)&&currentRole!=='admin')){ showToast('Unauthorised','error'); return; }
 
   const newDate  = $('editDate').value;
   const newTime  = $('editTime').value;
