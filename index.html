@@ -990,7 +990,7 @@ function renderCharts(){
   $('chartsSection').style.display='block';
   const byUser={}, byBranch={}, byState={};
   reports.forEach(r=>{
-    const u=(r.userEmail||'Unknown').split('@')[0];
+    const u=r.userEmail||'Unknown';
     byUser[u]=(byUser[u]||0)+1;
     const b=r.branch||'Unspecified'; byBranch[b]=(byBranch[b]||0)+1;
     const s=r.state||'Unspecified';  byState[s]=(byState[s]||0)+1;
