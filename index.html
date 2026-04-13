@@ -1017,8 +1017,32 @@ function buildChart(id, labels, data, label){
   const isLine=currentChartType==='line';
   const colors=CHART_COLORS.slice(0,Math.max(labels.length,1));
 
+  // Inline data label plugin — draws value above each bar/point
+  const dataLabelPlugin={
+    id:'dataLabels',
+    afterDatasetsDraw(chart){
+      const {ctx,data:d}=chart;
+      d.datasets.forEach((ds,di)=>{
+        chart.getDatasetMeta(di).data.forEach((bar,i)=>{
+          const val=ds.data[i];
+          if(val===0||val===undefined) return;
+          ctx.save();
+          ctx.font='bold 11px IBM Plex Mono, monospace';
+          ctx.fillStyle=dark?'#e8eaf0':'#1a1d27';
+          ctx.textAlign='center';
+          ctx.textBaseline='bottom';
+          const x=bar.x;
+          const y=isLine?bar.y-6:bar.y-4;
+          ctx.fillText(val,x,y);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
   chartInstances[id]=new Chart(canvas,{
     type:currentChartType,
+    plugins:[dataLabelPlugin],
     data:{
       labels,
       datasets:[{
@@ -1038,6 +1062,7 @@ function buildChart(id, labels, data, label){
     options:{
       responsive:true,
       animation:{duration:400},
+      layout:{padding:{top:20}},
       plugins:{
         legend:{display:false},
         tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} report${ctx.parsed.y!==1?'s':''}`}}
