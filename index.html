@@ -1026,17 +1026,18 @@ function buildChart(id, labels, data, label){
     id:'dataLabels',
     afterDatasetsDraw(chart){
       const {ctx,data:d}=chart;
+      const dark=!document.body.classList.contains('light-mode');
       d.datasets.forEach((ds,di)=>{
         chart.getDatasetMeta(di).data.forEach((bar,i)=>{
           const val=ds.data[i];
           if(val===0||val===undefined) return;
           ctx.save();
-          ctx.font='bold 11px IBM Plex Mono, monospace';
-          ctx.fillStyle=dark?'#e8eaf0':'#1a1d27';
+          ctx.font='bold 14px IBM Plex Mono, monospace';
+          ctx.fillStyle=dark?'#e8eaf0':'#111111';
           ctx.textAlign='center';
           ctx.textBaseline='bottom';
           const x=bar.x;
-          const y=isLine?bar.y-6:bar.y-4;
+          const y=isLine?bar.y-10:bar.y-6;
           ctx.fillText(val,x,y);
           ctx.restore();
         });
@@ -1066,7 +1067,7 @@ function buildChart(id, labels, data, label){
     options:{
       responsive:true,
       animation:{duration:400},
-      layout:{padding:{top:20}},
+      layout:{padding:{top:28}},
       plugins:{
         legend:{display:false},
         tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} report${ctx.parsed.y!==1?'s':''}`}}
