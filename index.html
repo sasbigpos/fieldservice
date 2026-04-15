@@ -742,7 +742,7 @@ input[type="file"]{display:none}
     </div>
     <!-- Canvas fills full width of modal -->
     <canvas id="sigModalCanvas"
-      style="width:100%;border-radius:10px;background:var(--surface2);border:2px solid var(--accent);display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none;user-select:none"
+      style="width:100%;border-radius:10px;background:#ffffff;border:2px solid var(--accent);display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none;user-select:none"
       height="260">
     </canvas>
     <div style="display:flex;gap:10px;margin-top:14px">
@@ -1697,10 +1697,12 @@ function openSigModal(sigid){
   canvas.height = 260;
 
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // White background so dark ink is always visible
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Draw baseline guide
-  ctx.strokeStyle = 'rgba(120,130,160,0.2)';
+  ctx.strokeStyle = 'rgba(100,110,140,0.35)';
   ctx.lineWidth = 1;
   ctx.setLineDash([6,4]);
   ctx.beginPath();
@@ -1743,9 +1745,9 @@ function initModalCanvas(){
     const {x,y} = getXY(e);
     ctx.beginPath();
     ctx.moveTo(x,y);
-    // Draw dot for taps
-    ctx.arc(x,y,1,0,Math.PI*2);
-    ctx.fillStyle = document.body.classList.contains('light-mode') ? '#1a1d27' : '#e8eaf0';
+    // Always use solid dark ink — looks clear on both light and dark backgrounds
+    ctx.arc(x,y,1.2,0,Math.PI*2);
+    ctx.fillStyle = '#111111';
     ctx.fill();
     ctx.beginPath();
     ctx.moveTo(x,y);
@@ -1755,10 +1757,10 @@ function initModalCanvas(){
     e.preventDefault();
     if(!sigDrawing) return;
     const {x,y} = getXY(e);
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2.8;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = document.body.classList.contains('light-mode') ? '#1a1d27' : '#e8eaf0';
+    ctx.strokeStyle = '#111111';
     ctx.lineTo(x,y);
     ctx.stroke();
     ctx.beginPath();
@@ -1791,7 +1793,14 @@ function closeSigModal(save){
     for(let i=3;i<px.length;i+=4){ if(px[i]>30){hasSig=true;break;} }
 
     if(hasSig){
-      sigData[sigModalTarget].img  = canvas.toDataURL('image/png');
+      // Composite onto white background so signature is always dark and opaque
+      const flat = document.createElement('canvas');
+      flat.width = canvas.width; flat.height = canvas.height;
+      const fctx = flat.getContext('2d');
+      fctx.fillStyle = '#ffffff';
+      fctx.fillRect(0, 0, flat.width, flat.height);
+      fctx.drawImage(canvas, 0, 0);
+      sigData[sigModalTarget].img  = flat.toDataURL('image/png');
       sigData[sigModalTarget].date = new Date().toLocaleDateString();
     }
   }
@@ -2524,6 +2533,9 @@ $('sigModalClear').addEventListener('click', ()=>{
   const c=$('sigModalCanvas');
   const ctx=c.getContext('2d');
   ctx.clearRect(0,0,c.width,c.height);
+  // White background
+  ctx.fillStyle='#ffffff';
+  ctx.fillRect(0,0,c.width,c.height);
   // Redraw guide line
   ctx.strokeStyle='rgba(120,130,160,0.2)';
   ctx.lineWidth=1;
