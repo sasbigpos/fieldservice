@@ -1757,7 +1757,7 @@ function initModalCanvas(){
     e.preventDefault();
     if(!sigDrawing) return;
     const {x,y} = getXY(e);
-    ctx.lineWidth = 2.8;
+    ctx.lineWidth = 3.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#111111';
@@ -1793,14 +1793,35 @@ function closeSigModal(save){
     for(let i=3;i<px.length;i+=4){ if(px[i]>30){hasSig=true;break;} }
 
     if(hasSig){
-      // Composite onto white background so signature is always dark and opaque
+      // Composite on white + darken ink before saving for crisp PDF output
       const flat = document.createElement('canvas');
       flat.width = canvas.width; flat.height = canvas.height;
       const fctx = flat.getContext('2d');
+      // White fill
       fctx.fillStyle = '#ffffff';
       fctx.fillRect(0, 0, flat.width, flat.height);
       fctx.drawImage(canvas, 0, 0);
-      sigData[sigModalTarget].img  = flat.toDataURL('image/png');
+
+      // Darken pass: push any non-white pixel to near-black
+      const imgData = fctx.getImageData(0, 0, flat.width, flat.height);
+      const d = imgData.data;
+      for(let i = 0; i < d.length; i += 4){
+        const brightness = (d[i] + d[i+1] + d[i+2]) / 3;
+        if(brightness < 240){ // not background white
+          // Map to very dark — the darker the original, the darker the result
+          const factor = Math.pow((255 - brightness) / 255, 0.6);
+          const v = Math.round(255 - factor * 240);
+          d[i] = v; d[i+1] = v; d[i+2] = v;
+        } else {
+          // Pure white background
+          d[i] = 255; d[i+1] = 255; d[i+2] = 255;
+        }
+        d[i+3] = 255; // full opacity
+      }
+      fctx.putImageData(imgData, 0, 0);
+
+      // Save as JPEG (no alpha, forces white background in PDF)
+      sigData[sigModalTarget].img  = flat.toDataURL('image/jpeg', 0.95);
       sigData[sigModalTarget].date = new Date().toLocaleDateString();
     }
   }
@@ -2359,45 +2380,52 @@ async function exportPdf(){
     const sigs=r.signatures||{};
     const hasSig=sigs.tech||sigs.customer;
     if(hasSig){
-      if(y>230){pdf.addPage();y=margin;}
+      if(y>210){pdf.addPage();y=margin;}
       else y+=6;
-      pdf.setDrawColor(220,220,235);pdf.setLineWidth(0.4);
+      pdf.setDrawColor(180,200,180);pdf.setLineWidth(0.5);
       pdf.line(margin,y,pageW-margin,y);y+=8;
 
       const sigBoxW=(contentW-10)/2;
-      const sigBoxH=28;
+      const sigBoxH=36;  // taller box = more signature detail
       const sigY=y;
 
       // Technical Person (left)
-      pdf.setFontSize(8);pdf.setFont('helvetica','bold');pdf.setTextColor(120,120,150);
+      pdf.setFontSize(9);pdf.setFont('helvetica','bold');pdf.setTextColor(40,40,60);
       pdf.text('TECHNICAL PERSON',margin,sigY);
 
       if(sigs.tech?.img){
-        try{ pdf.addImage(sigs.tech.img,'PNG',margin,sigY+3,sigBoxW,sigBoxH); }catch{}
+        try{
+          // Use JPEG — forces opaque rendering in PDF
+          const fmt = sigs.tech.img.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+          pdf.addImage(sigs.tech.img, fmt, margin, sigY+3, sigBoxW, sigBoxH);
+        }catch(e){console.error('sig img error',e);}
       }
-      pdf.setDrawColor(180,180,200);pdf.setLineWidth(0.3);
-      pdf.line(margin,sigY+sigBoxH+5,margin+sigBoxW,sigY+sigBoxH+5);
-      pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.setTextColor(30,30,40);
-      pdf.text(sigs.tech?.name||'_________________________',margin,sigY+sigBoxH+10);
-      pdf.setFontSize(8);pdf.setTextColor(120,120,150);
-      pdf.text('Name & Signature',margin,sigY+sigBoxH+15);
-      pdf.text(`Date: ${sigs.tech?.date||''}`,margin,sigY+sigBoxH+20);
+      pdf.setDrawColor(60,60,80);pdf.setLineWidth(0.4);
+      pdf.line(margin,sigY+sigBoxH+6,margin+sigBoxW,sigY+sigBoxH+6);
+      pdf.setFontSize(10);pdf.setFont('helvetica','bold');pdf.setTextColor(20,20,30);
+      pdf.text(sigs.tech?.name||'_________________________',margin,sigY+sigBoxH+12);
+      pdf.setFontSize(8);pdf.setFont('helvetica','normal');pdf.setTextColor(80,80,100);
+      pdf.text('Name & Signature',margin,sigY+sigBoxH+18);
+      pdf.text(`Date: ${sigs.tech?.date||''}`,margin,sigY+sigBoxH+24);
 
       // Customer (right)
       const custX=margin+sigBoxW+10;
-      pdf.setFontSize(8);pdf.setFont('helvetica','bold');pdf.setTextColor(120,120,150);
+      pdf.setFontSize(9);pdf.setFont('helvetica','bold');pdf.setTextColor(40,40,60);
       pdf.text('ACKNOWLEDGED BY CUSTOMER',custX,sigY);
 
       if(sigs.customer?.img){
-        try{ pdf.addImage(sigs.customer.img,'PNG',custX,sigY+3,sigBoxW,sigBoxH); }catch{}
+        try{
+          const fmt = sigs.customer.img.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+          pdf.addImage(sigs.customer.img, fmt, custX, sigY+3, sigBoxW, sigBoxH);
+        }catch(e){console.error('sig img error',e);}
       }
-      pdf.setDrawColor(180,180,200);pdf.setLineWidth(0.3);
-      pdf.line(custX,sigY+sigBoxH+5,custX+sigBoxW,sigY+sigBoxH+5);
-      pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.setTextColor(30,30,40);
-      pdf.text(sigs.customer?.name||'_________________________',custX,sigY+sigBoxH+10);
-      pdf.setFontSize(8);pdf.setTextColor(120,120,150);
-      pdf.text('Name & Signature',custX,sigY+sigBoxH+15);
-      pdf.text(`Date: ${sigs.customer?.date||''}`,custX,sigY+sigBoxH+20);
+      pdf.setDrawColor(60,60,80);pdf.setLineWidth(0.4);
+      pdf.line(custX,sigY+sigBoxH+6,custX+sigBoxW,sigY+sigBoxH+6);
+      pdf.setFontSize(10);pdf.setFont('helvetica','bold');pdf.setTextColor(20,20,30);
+      pdf.text(sigs.customer?.name||'_________________________',custX,sigY+sigBoxH+12);
+      pdf.setFontSize(8);pdf.setFont('helvetica','normal');pdf.setTextColor(80,80,100);
+      pdf.text('Name & Signature',custX,sigY+sigBoxH+18);
+      pdf.text(`Date: ${sigs.customer?.date||''}`,custX,sigY+sigBoxH+24);
     }
 
     // ── Footer on all pages ──
