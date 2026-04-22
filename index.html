@@ -458,11 +458,11 @@ input[type="file"]{display:none}
     <div class="form-card">
       <h3>✍️ Signatures</h3>
       <p class="text-muted" style="margin-bottom:12px">Tap a signature box to sign</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="display:flex;flex-direction:column;gap:20px">
         <!-- Technical Person -->
-        <div>
-          <div class="sig-label">Technical Person</div>
-          <label style="margin-top:8px">Name</label>
+        <div style="border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div class="sig-label" style="margin-bottom:8px">✍ Technical Person</div>
+          <label style="margin-top:0">Name</label>
           <input type="text" id="sigTechName" placeholder="Full name"/>
           <div class="sig-preview-box" id="sigTechPreview" data-sigid="tech" style="margin-top:10px">
             <div class="sig-preview-empty" id="sigTechEmpty">
@@ -471,13 +471,15 @@ input[type="file"]{display:none}
             </div>
             <img id="sigTechImg" class="sig-preview-img" style="display:none" alt="signature"/>
           </div>
-          <button class="sig-clear-btn" data-sigid="tech" style="margin-top:6px">✕ Clear signature</button>
-          <div class="sig-date-val" id="sigTechDate"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+            <button class="sig-clear-btn" data-sigid="tech">✕ Clear signature</button>
+            <div class="sig-date-val" id="sigTechDate"></div>
+          </div>
         </div>
         <!-- Customer -->
-        <div>
-          <div class="sig-label">Acknowledged by Customer</div>
-          <label style="margin-top:8px">Name</label>
+        <div style="border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div class="sig-label" style="margin-bottom:8px">✍ Acknowledged by Customer</div>
+          <label style="margin-top:0">Name</label>
           <input type="text" id="sigCustName" placeholder="Full name"/>
           <div class="sig-preview-box" id="sigCustPreview" data-sigid="customer" style="margin-top:10px">
             <div class="sig-preview-empty" id="sigCustEmpty">
@@ -486,8 +488,10 @@ input[type="file"]{display:none}
             </div>
             <img id="sigCustImg" class="sig-preview-img" style="display:none" alt="signature"/>
           </div>
-          <button class="sig-clear-btn" data-sigid="customer" style="margin-top:6px">✕ Clear signature</button>
-          <div class="sig-date-val" id="sigCustDate"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+            <button class="sig-clear-btn" data-sigid="customer">✕ Clear signature</button>
+            <div class="sig-date-val" id="sigCustDate"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -732,20 +736,22 @@ input[type="file"]{display:none}
   </div>
 </div>
 <div id="sigModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center;animation:fadeIn .2s ease">
-  <div id="sigModalBox" style="background:var(--surface);width:100%;max-width:600px;border-radius:18px 18px 0 0;padding:20px;box-shadow:0 -8px 32px rgba(0,0,0,.4)">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+  <div id="sigModalBox" style="background:var(--surface);width:100%;max-width:600px;border-radius:18px 18px 0 0;padding:16px 16px 20px;box-shadow:0 -8px 32px rgba(0,0,0,.4);max-height:85dvh;max-height:85vh;display:flex;flex-direction:column">
+    <!-- Header — fixed -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0">
       <div>
         <div style="font-weight:600;font-size:16px" id="sigModalTitle">Signature</div>
         <div style="font-size:12px;color:var(--text-muted);font-family:var(--mono);margin-top:2px">Draw your signature in the box below</div>
       </div>
-      <button id="sigModalClose" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text-muted);cursor:pointer;font-size:13px">✕</button>
+      <button id="sigModalClose" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text-muted);cursor:pointer;font-size:13px;flex-shrink:0">✕</button>
     </div>
-    <!-- Canvas fills full width of modal -->
+    <!-- Canvas — flex grows but won't overflow -->
     <canvas id="sigModalCanvas"
-      style="width:100%;border-radius:10px;background:#ffffff;border:2px solid var(--accent);display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none;user-select:none"
-      height="260">
+      style="width:100%;flex:1;min-height:160px;max-height:55dvh;max-height:55vh;border-radius:10px;background:#ffffff;border:2px solid var(--accent);display:block;cursor:crosshair;touch-action:none;-webkit-user-select:none;user-select:none"
+      height="220">
     </canvas>
-    <div style="display:flex;gap:10px;margin-top:14px">
+    <!-- Buttons — fixed at bottom -->
+    <div style="display:flex;gap:10px;margin-top:12px;flex-shrink:0">
       <button id="sigModalClear" class="btn btn-ghost flex-1" style="margin-top:0">✕ Clear</button>
       <button id="sigModalDone" class="btn btn-primary flex-1" style="margin-top:0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1692,33 +1698,37 @@ function openSigModal(sigid){
   // Set canvas width to match its CSS display width for pixel-perfect drawing
   const canvas = $('sigModalCanvas');
   const box = $('sigModalBox');
-  // Set actual pixel width = display width for 1:1 coordinate mapping
-  canvas.width = box.clientWidth - 40; // 20px padding each side
-  canvas.height = 260;
+  // Use requestAnimationFrame to measure after layout
+  requestAnimationFrame(()=>{
+    const padding = 32; // 16px each side
+    canvas.width  = box.clientWidth - padding;
+    // Height: use rendered height (capped by CSS max-height), min 160
+    canvas.height = Math.max(canvas.clientHeight || 220, 160);
 
-  const ctx = canvas.getContext('2d');
-  // White background so dark ink is always visible
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const ctx = canvas.getContext('2d');
+    // White background so dark ink is always visible
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw baseline guide
-  ctx.strokeStyle = 'rgba(100,110,140,0.35)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([6,4]);
-  ctx.beginPath();
-  ctx.moveTo(20, canvas.height - 40);
-  ctx.lineTo(canvas.width - 20, canvas.height - 40);
-  ctx.stroke();
-  ctx.setLineDash([]);
+    // Draw baseline guide
+    ctx.strokeStyle = 'rgba(100,110,140,0.35)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6,4]);
+    ctx.beginPath();
+    ctx.moveTo(20, canvas.height - 40);
+    ctx.lineTo(canvas.width - 20, canvas.height - 40);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
-  // If existing signature, show it
-  if(sigData[sigid]?.img){
-    const img = new Image();
-    img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    img.src = sigData[sigid].img;
-  }
+    // If existing signature, show it
+    if(sigData[sigid]?.img){
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      img.src = sigData[sigid].img;
+    }
 
-  initModalCanvas();
+    initModalCanvas();
+  });
 }
 
 function initModalCanvas(){
