@@ -809,7 +809,6 @@ let jobPrefix      = '';
 let branchOptions  = [];   // configurable branch list
 let stateOptions   = [];   // configurable state list
 let chartInstances = {};   // Chart.js instances keyed by canvas id
-let userMap        = {};   // uid → {name, email}
 
 // ── Helpers ────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -905,9 +904,7 @@ onAuthStateChanged(auth,async user=>{
       await setDoc(doc(db,'users',user.uid),{
         email: user.email,
         uid:   user.uid,
-        lastLogin: serverTimestamp(),
-        // Persist Firebase Auth display name if set
-        ...(user.displayName ? {displayName: user.displayName} : {})
+        lastLogin: serverTimestamp()
       },{merge:true});
     }catch{}
 
@@ -915,10 +912,9 @@ onAuthStateChanged(auth,async user=>{
     showScreen('app');
     switchPage('Dashboard');  // always land on Dashboard
     loadQuestions();
+    loadReports();
     loadJobPrefix();
     loadBranchState();
-    // Load users first so userMap is ready before charts render
-    loadUsersList().then(()=>loadReports());
     if(firebaseConfig.apiKey==='YOUR_API_KEY') $('configNotice').style.display='block';
   }else{
     currentUser=null;
@@ -962,61 +958,37 @@ async function loadUsersList(){
       .map(d=>({uid:d.id,...d.data()}))
       .sort((a,b)=>(a.email||'').localeCompare(b.email||''));
 
-    // Rebuild userMap
-    userMap={};
-    users.forEach(u=>{ userMap[u.uid]={name:u.displayName||'',email:u.email||''}; });
-
     if(!users.length){
-      el.innerHTML='<p class="text-muted" style="text-align:center;padding:16px">No users yet.</p>';
+      el.innerHTML='<p class="text-muted" style="text-align:center;padding:16px">No users yet. Users appear here after their first login.</p>';
       return;
     }
 
     el.innerHTML=users.map(u=>{
-      const email  = u.email||'';
-      const name   = u.displayName||'';
-      const isMe   = u.uid===currentUser.uid;
-      const role   = u.role||'user';
-      const isAdm  = role==='admin';
-      let loginStr = '';
+      const email = u.email||u.Email||u.EMAIL||'';
+      const isMe  = u.uid===currentUser.uid;
+      const role  = u.role||'user';
+      const isAdm = role==='admin';
+      let loginStr='';
       try{ if(u.lastLogin?.toDate) loginStr=u.lastLogin.toDate().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch{}
-
-      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">
-        <!-- Top row: avatar + info + role -->
-        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px">
-          <div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;background:${isAdm?'rgba(244,185,66,.2)':'rgba(78,205,196,.15)'};color:${isAdm?'var(--accent)':'var(--accent2)'}">
-            ${name ? esc(name.charAt(0).toUpperCase()) : (isAdm?'👑':'👤')}
-          </div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-              ${name?esc(name):'<span style="color:var(--text-muted);font-weight:400;font-style:italic">No name set</span>'}
-              ${isMe?'<span style="font-size:10px;color:var(--accent);font-family:var(--mono);margin-left:6px">(you)</span>':''}
-            </div>
-            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-              ${esc(email)||'<i>No email</i>'}
-            </div>
-            <div style="font-size:11px;font-family:var(--mono);color:var(--text-muted);margin-top:2px">
-              ${isAdm?'<span style="color:var(--accent)">★ Admin</span>':'<span style="color:var(--accent2)">User</span>'}
-              ${loginStr?' · 🕐 '+esc(loginStr):''}
-            </div>
-          </div>
-          <select onchange="this.dataset.uid&&window._updateRole(this.dataset.uid,this.value)"
-            style="padding:5px 8px;border-radius:6px;font-size:12px;font-family:var(--mono);background:var(--bg);border:1px solid var(--border);color:var(--text);cursor:pointer;width:82px;flex-shrink:0"
-            data-uid="${esc(u.uid)}" ${isMe?'disabled':''}>
-            <option value="user"  ${role==='user' ?'selected':''}>User</option>
-            <option value="admin" ${role==='admin'?'selected':''}>Admin</option>
-          </select>
+      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;min-width:0">
+        <div style="width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;background:${isAdm?'rgba(244,185,66,.15)':'rgba(78,205,196,.12)'}">
+          ${isAdm?'👑':'👤'}
         </div>
-        <!-- Name editor row -->
-        <div style="padding:0 14px 12px;display:flex;gap:8px;align-items:center;border-top:1px solid var(--border);padding-top:10px">
-          <div style="font-size:11px;font-family:var(--mono);color:var(--text-muted);white-space:nowrap">Display Name:</div>
-          <input type="text" value="${esc(name)}" placeholder="Enter display name"
-            style="flex:1;padding:7px 10px;font-size:13px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text)"
-            data-nameuid="${esc(u.uid)}" id="nameInput_${esc(u.uid)}"/>
-          <button onclick="window._saveName('${esc(u.uid)}')"
-            style="padding:7px 14px;border-radius:6px;background:var(--brand);color:#fff;border:none;cursor:pointer;font-size:12px;font-family:var(--mono);white-space:nowrap;flex-shrink:0">
-            Save
-          </button>
+        <div style="flex:1;min-width:0;overflow:hidden">
+          <div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${email?esc(email):'<span style="color:var(--text-muted);font-style:italic;font-weight:400">No email yet</span>'}
+            ${isMe?'<span style="font-size:10px;color:var(--accent);font-weight:400;margin-left:6px;font-family:var(--mono)">(you)</span>':''}
+          </div>
+          <div style="font-size:11px;font-family:var(--mono);color:var(--text-muted);margin-top:3px;white-space:nowrap">
+            ${loginStr?'🕐 '+esc(loginStr):''}
+          </div>
         </div>
+        <select onchange="this.dataset.uid&&window._updateRole(this.dataset.uid,this.value)"
+          style="padding:5px 8px;border-radius:6px;font-size:12px;font-family:var(--mono);background:var(--bg);border:1px solid var(--border);color:var(--text);cursor:pointer;width:80px;flex-shrink:0"
+          data-uid="${esc(u.uid)}" ${isMe?'disabled':''}>
+          <option value="user"  ${role==='user' ?'selected':''}>User</option>
+          <option value="admin" ${role==='admin'?'selected':''}>Admin</option>
+        </select>
       </div>`;
     }).join('');
   }catch(e){
@@ -1028,28 +1000,11 @@ async function updateUserRole(uid, role){
   try{
     await setDoc(doc(db,'users',uid),{role},{merge:true});
     showToast(`Role updated to ${role} ✓`,'success');
-    loadUsersList(); // refresh to show updated role
   }catch(e){
     showToast('Failed to update role','error');
   }
 }
 window._updateRole = updateUserRole;
-
-async function saveDisplayName(uid){
-  const inp=document.getElementById('nameInput_'+uid);
-  if(!inp) return;
-  const name=inp.value.trim();
-  try{
-    await setDoc(doc(db,'users',uid),{displayName:name},{merge:true});
-    if(userMap[uid]) userMap[uid].name=name;
-    showToast('Name saved ✓','success');
-    loadUsersList(); // refresh list
-    renderCharts();  // update chart labels
-  }catch(e){
-    showToast('Failed to save name','error');
-  }
-}
-window._saveName = saveDisplayName;
 
 // ── Branch & State Config ───────────────────
 async function loadBranchState(){
@@ -1259,10 +1214,8 @@ function renderCharts(){
 
   const byUser={}, byBranch={}, byState={}, byStatus={};
   data.forEach(r=>{
-    // Use display name if available, fall back to email
-    const uid = r.userId||'';
-    const uName = (uid && userMap[uid]?.name) ? userMap[uid].name : (r.userEmail||'Unknown');
-    byUser[uName]=(byUser[uName]||0)+1;
+    const u=r.userEmail||'Unknown';
+    byUser[u]=(byUser[u]||0)+1;
     const b=r.branch||'Unspecified'; byBranch[b]=(byBranch[b]||0)+1;
     const s=r.state||'Unspecified';  byState[s]=(byState[s]||0)+1;
     const st=r.status||'pending';    byStatus[st]=(byStatus[st]||0)+1;
@@ -1688,7 +1641,6 @@ async function submitReport(){
   const totalPhotoCount=compGen.length+Object.values(compQ).reduce((s,a)=>s+a.length,0);
   const report={
     title:fullJobNo, jobSuffix:suffix, jobPrefix, date, time, status, branch, state,
-    userName: userMap[currentUser.uid]?.name||'',
     fields:fieldData, photoCount:compGen.length, totalPhotoCount,
     userId:currentUser.uid, userEmail:currentUser.email,
     createdAt:serverTimestamp(), createdAtMs:Date.now(),
